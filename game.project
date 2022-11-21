@@ -1,0 +1,17 @@
+[bootstrap]
+main_collection = /main/main.collectionc
+
+[script]
+shared_state = 1
+
+[display]
+width = 960
+height = 640
+
+[android]
+input_method = HiddenInputField
+
+[project]
+title = My Project
+dependencies#0 = https://github.com/selimanac/DAABBCC/archive/refs/heads/v2.1.zip
+

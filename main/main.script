@@ -1,0 +1,87 @@
+game = require("game")
+
+local TILE_SIZE = 64
+
+local function tile_to_world(x, y, map_pos)
+	return vmath.vector3((x-1)*TILE_SIZE + TILE_SIZE/2, (y-1)*TILE_SIZE + TILE_SIZE/2, 0) + map_pos
+end
+
+local function insert_tilemap(url, group)
+	local tile_aabbs = {}
+
+	local map_pos = go.get_position(url)
+	local start_x, start_y, width, height = tilemap.get_bounds(url)
+	for tile_x = start_x,width do
+		for tile_y = start_y,height do
+			if tilemap.get_tile(url, "layer1", tile_x, tile_y) > 0 then
+				local pos = tile_to_world(tile_x, tile_y, map_pos)
+				local aabb_id = aabb.insert(group, pos.x, pos.y, TILE_SIZE, TILE_SIZE)
+				tile_aabbs[aabb_id] = pos
+			end
+		end
+	end
+
+	return tile_aabbs
+end
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	self.pos = vmath.vector3(0, 0, 1)
+
+	self.tile_aabbs = insert_tilemap("#map", game.GROUP_WORLD)
+
+	go.set("go1#sprite", "tint", vmath.vector4(0, 1, 0, 1))
+	go.set("go2#sprite", "tint", vmath.vector4(0, 0, 1, 1))
+end
+
+function final(self)
+	-- Add finalization code here
+	-- Learn more: https://defold.com/manuals/script/
+	-- Remove this function if not needed
+end
+
+function update(self, dt)
+	local results, count = aabb.raycast_sort(game.GROUP_WORLD, self.pos.x, self.pos.y, self.pos.x + 200, self.pos.y)
+	--if not results then return print("no collision") end
+	--pprint(self.pos, results[1].distance)
+
+	if results then
+		local result = results[1]
+		print(self.tile_aabbs[result.id])
+	end
+
+	local distance = results and results[1].distance or 0
+	go.set_position(vmath.vector3(self.pos.x + distance, self.pos.y, 1), "go1")
+	go.set_position(self.pos, "go2")
+end
+
+function fixed_update(self, dt)
+	-- Add update code here
+	-- Learn more: https://defold.com/manuals/script/
+	-- Remove this function if not needed
+end
+
+function on_message(self, message_id, message, sender)
+	-- Add message-handling code here
+	-- Learn more: https://defold.com/manuals/message-passing/
+	-- Remove this function if not needed
+end
+
+local SPEED = 5
+function on_input(self, action_id, action)
+	if action_id == hash("up") then
+		self.pos.y = self.pos.y + SPEED
+	elseif action_id == hash("down") then
+		self.pos.y = self.pos.y - SPEED
+	elseif action_id == hash("left") then
+		self.pos.x = self.pos.x - SPEED
+	elseif action_id == hash("right") then
+		self.pos.x = self.pos.x + SPEED
+	end
+end
+
+function on_reload(self)
+	-- Add reload-handling code here
+	-- Learn more: https://defold.com/manuals/hot-reload/
+	-- Remove this function if not needed
+end
