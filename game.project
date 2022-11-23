@@ -21,3 +21,8 @@ max_count = 2048
 [collection]
 max_instances = 2048
 
+[particle_fx]
+max_emitter_count = 2048
+max_count = 2048
+max_particle_count = 4096
+

@@ -1,3 +1,18 @@
+components {
+  id: "splash"
+  component: "/main/splash.particlefx"
+  position {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  }
+  rotation {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+  }
+}
 embedded_components {
   id: "sprite"
   type: "sprite"
@@ -18,8 +33,8 @@ embedded_components {
     w: 1.0
   }
   scale {
-    x: 0.5
-    y: 0.5
+    x: 0.3
+    y: 0.3
     z: 1.0
   }
 }
