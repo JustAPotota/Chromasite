@@ -15,3 +15,9 @@ input_method = HiddenInputField
 title = My Project
 dependencies#0 = https://github.com/selimanac/DAABBCC/archive/refs/heads/v2.1.zip
 
+[sprite]
+max_count = 2048
+
+[collection]
+max_instances = 2048
+
