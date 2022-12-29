@@ -1,11 +1,6 @@
 game = require("game")
 
-local TILE_SIZE = 64
 local SPEED = 5
-
-local function tile_to_world(x, y, map_pos)
-	return vmath.vector3((x-1)*TILE_SIZE + TILE_SIZE/2, (y-1)*TILE_SIZE + TILE_SIZE/2, 0) + map_pos
-end
 
 local VECTOR_UP = vmath.vector3(0, 1, 0)
 local function rotate(id, normal)
@@ -20,53 +15,33 @@ local PROJECTILE_SPEED = 200
 local function start(self)
 	local groups = {hash("world")}
 	timer.delay(1.5, true, function()
-		for degrees = 1,365,0.5 do
+		for degrees = 1,365,0.25 do
 			local offset = vmath.rotate(vmath.quat_rotation_z(math.rad(degrees)), vmath.vector3(0, 1000, 0))
 			local ray = physics.raycast(self.pos, self.pos + offset, groups)
 
 			if ray then
 				local dot_id = factory.create("#factory", self.pos)
+
+				local sprite_url = msg.url(nil, dot_id, "sprite")
+				go.set(sprite_url, "tint", self.color)
+
 				go.animate(dot_id, "position", go.PLAYBACK_ONCE_FORWARD, ray.position, go.EASING_LINEAR, vmath.length(self.pos - ray.position)/PROJECTILE_SPEED, 0, function()
 					go.animate(msg.url(nil, dot_id, "sprite"), "tint.w", go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.1, 0, function()
 						if degrees % 1 > 0 then return go.delete(dot_id) end
 						rotate(dot_id, ray.normal)
-						particlefx.play(msg.url(nil, dot_id, "splash"), function(_, _, _, state)
+
+						local particle_url = msg.url(nil, dot_id, "splash")
+						particlefx.play(particle_url, function(_, _, _, state)
 							if state == particlefx.EMITTER_STATE_POSTSPAWN then
 								go.delete(dot_id)
 							end
 						end)
+						particlefx.set_constant(particle_url, "emitter", "tint", self.color)
 					end)
 				end)
 			end
 		end
 	end)
-end
-
-local MAP_X, MAP_Y, MAP_W, MAP_H
-local function is_in_bounds(tile_x, tile_y)
-	return 	tile_x >= MAP_X and
-			tile_y >= MAP_Y and
-			tile_x <= MAP_W and
-			tile_y <= MAP_H
-end
-
-local function world_to_tile(x, y)
-	return math.ceil(x/TILE_SIZE), math.ceil(y/TILE_SIZE)
-end
-
-local function sign(x)
-	return x > 0 and 1 or (x < 0 and -1 or 0)
-end
-
-local function is_solid(pos, x_offset, y_offset)
-	local x_offset = x_offset or 0
-	local y_offset = y_offset or 0
-	x_offset = x_offset * 0.99
-	y_offset = y_offset * 0.99
-	local pos = pos + vmath.vector3(x_offset, y_offset, 0)
-	local tile_x, tile_y = world_to_tile(pos.x, pos.y)
-	if not is_in_bounds(tile_x, tile_y) then return false end
-	return tilemap.get_tile("/map#map", "layer1", tile_x, tile_y) > 0
 end
 
 local function move_x(self, x)
@@ -103,8 +78,11 @@ function init(self)
 	MAP_X, MAP_Y, MAP_W, MAP_H = tilemap.get_bounds("/map#map")
 	self.pos = vmath.vector3(480, 320, 1)
 	self.input = vmath.vector3()
+	self.color = vmath.vector4(0, 0.2, 0.8, 1)
 
-	go.set("go2#sprite", "tint", vmath.vector4(0, 0, 1, 1))
+	go.set("go2#sprite", "tint", self.color)
+	particlefx.play("go2#trail")
+	particlefx.set_constant("go2#trail", "emitter", "tint", self.color)
 end
 
 function final(self)
@@ -130,6 +108,7 @@ function on_message(self, message_id, message, sender)
 	-- Learn more: https://defold.com/manuals/message-passing/
 	-- Remove this function if not needed
 end
+
 function on_input(self, action_id, action)
 	if action_id == hash("up") then
 		self.input.y = 1
