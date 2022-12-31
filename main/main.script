@@ -12,21 +12,26 @@ local function rotate(id, normal)
 end
 
 local PROJECTILE_SPEED = 200
+local DOT_RAY = vmath.vector3(0, 500, 0)
+local WORLD_GROUP = { hash("world") }
+local PROP_TINT = hash("tint")
+local PROP_ALPHA = hash("tint.w")
+local PROP_POSITION = hash("position")
+local MAX_TRAVEL_TIME = DOT_RAY.y / PROJECTILE_SPEED
 local function start(self)
-	local groups = {hash("world")}
 	timer.delay(1.5, true, function()
 		for degrees = 1,365,0.25 do
-			local offset = vmath.rotate(vmath.quat_rotation_z(math.rad(degrees)), vmath.vector3(0, 1000, 0))
-			local ray = physics.raycast(self.pos, self.pos + offset, groups)
+			local offset = vmath.rotate(vmath.quat_rotation_z(math.rad(degrees)), DOT_RAY)
+			local end_pos = self.pos + offset
+			local ray = physics.raycast(self.pos, end_pos, WORLD_GROUP)
+
+			local dot_id = factory.create(self.dot_factory, self.pos)
+			local sprite_url = msg.url(nil, dot_id, "sprite")
+			go.set(sprite_url, PROP_TINT, self.color)
 
 			if ray then
-				local dot_id = factory.create("#factory", self.pos)
-
-				local sprite_url = msg.url(nil, dot_id, "sprite")
-				go.set(sprite_url, "tint", self.color)
-
-				go.animate(dot_id, "position", go.PLAYBACK_ONCE_FORWARD, ray.position, go.EASING_LINEAR, vmath.length(self.pos - ray.position)/PROJECTILE_SPEED, 0, function()
-					go.animate(msg.url(nil, dot_id, "sprite"), "tint.w", go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.1, 0, function()
+				go.animate(dot_id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, ray.position, go.EASING_LINEAR, vmath.length(self.pos - ray.position)/PROJECTILE_SPEED, 0, function()
+					go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.1, 0, function()
 						if degrees % 1 > 0 then return go.delete(dot_id) end
 						rotate(dot_id, ray.normal)
 
@@ -36,8 +41,13 @@ local function start(self)
 								go.delete(dot_id)
 							end
 						end)
-						particlefx.set_constant(particle_url, "emitter", "tint", self.color)
+						particlefx.set_constant(particle_url, "emitter", PROP_TINT, self.color)
 					end)
+				end)
+			else
+				go.animate(dot_id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, end_pos, go.EASING_LINEAR, MAX_TRAVEL_TIME)
+				go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.2, MAX_TRAVEL_TIME - 0.2, function()
+					go.delete(dot_id)
 				end)
 			end
 		end
@@ -78,7 +88,9 @@ function init(self)
 	MAP_X, MAP_Y, MAP_W, MAP_H = tilemap.get_bounds("/map#map")
 	self.pos = vmath.vector3(480, 320, 1)
 	self.input = vmath.vector3()
+	self.velocity = vmath.vector3()
 	self.color = vmath.vector4(0, 0.2, 0.8, 1)
+	self.dot_factory = msg.url("#factory")
 
 	go.set("go2#sprite", "tint", self.color)
 	particlefx.play("go2#trail")
