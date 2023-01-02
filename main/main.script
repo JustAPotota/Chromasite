@@ -99,6 +99,8 @@ function init(self)
 	go.set("go2#sprite", "tint", self.color * 1.5)
 	particlefx.play("go2#trail")
 	particlefx.set_constant("go2#trail", "emitter", "tint", self.color)
+
+	start(self)
 end
 
 function final(self)
@@ -144,8 +146,6 @@ function on_input(self, action_id, action)
 	if action.pressed then
 		if action_id == hash("p") then
 			msg.post("@system:", "toggle_profile")
-		elseif action_id == hash("space") then
-			start(self)
 		end
 	end
 end
