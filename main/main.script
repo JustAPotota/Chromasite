@@ -69,7 +69,7 @@ local function move_x(self, x)
 	if not ray then
 		self.pos = new_pos
 	else
-		self.velocity.x = self.velocity.x * -0.2
+		self.velocity.x = self.velocity.x * -0.5
 	end
 end
 
@@ -80,7 +80,7 @@ local function move_y(self, y)
 	if not ray then
 		self.pos = new_pos
 	else
-		self.velocity.y = self.velocity.y * -0.2
+		self.velocity.y = self.velocity.y * -0.5
 	end
 end
 
