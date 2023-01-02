@@ -1,5 +1,6 @@
 [bootstrap]
 main_collection = /main/main.collectionc
+render = /render/orthographic.renderc
 
 [script]
 shared_state = 1
@@ -14,6 +15,7 @@ input_method = HiddenInputField
 [project]
 title = My Project
 dependencies#0 = https://github.com/selimanac/DAABBCC/archive/refs/heads/v2.1.zip
+dependencies#1 = https://github.com/britzl/defold-orthographic/archive/refs/tags/3.2.1.zip
 
 [sprite]
 max_count = 4096

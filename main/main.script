@@ -96,7 +96,7 @@ function init(self)
 	self.color = vmath.vector4(0, 0.2, 0.8, 1)
 	self.dot_factory = msg.url("#factory")
 
-	go.set("go2#sprite", "tint", self.color)
+	go.set("go2#sprite", "tint", self.color * 1.5)
 	particlefx.play("go2#trail")
 	particlefx.set_constant("go2#trail", "emitter", "tint", self.color)
 end
@@ -107,26 +107,12 @@ function final(self)
 	-- Remove this function if not needed
 end
 
-local MAX_SPEED = 300^2
 local ACCELERATION = 500
-local FRICTION = 100
 function update(self, dt)
-	if vmath.length_sqr(self.input) > 0 then
-		local acceleration = vmath.normalize(self.input) * ACCELERATION * dt
-	end
 	if vmath.length_sqr(self.input) > 0 then
 		self.velocity = self.velocity + vmath.normalize(self.input) * ACCELERATION * dt
 	end
-	if self.velocity.x > 0 then
-		self.velocity.x = math.max(self.velocity.x - FRICTION * dt, 0)
-	elseif self.velocity.x < 0 then
-		self.velocity.x = math.min(self.velocity.x + FRICTION * dt, 0)
-	end
-	if self.velocity.y > 0 then
-		self.velocity.y = math.max(self.velocity.y - FRICTION * dt, 0)
-	elseif self.velocity.y < 0 then
-		self.velocity.y = math.min(self.velocity.y + FRICTION * dt, 0)
-	end
+	self.velocity = self.velocity * 0.99
 	move(self, self.velocity * dt)
 	go.set_position(self.pos, "go2")
 	self.input.x, self.input.y = 0, 0
