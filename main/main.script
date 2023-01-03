@@ -1,7 +1,3 @@
-game = require("game")
-
-local SPEED = 5
-
 local VECTOR_UP = vmath.vector3(0, 1, 0)
 local function rotate(id, normal)
 	if normal.y == -1 then
@@ -11,23 +7,54 @@ local function rotate(id, normal)
 	end
 end
 
+---@class RaycastResponse
+---@field fraction number
+---@field position vector3
+---@field normal vector3
+---@field id hash
+---@field group hash
+---@field request_id number
+
+---@param hits RaycastResponse[]
+---@return RaycastResponse[]
+local function closest_per_group(hits)
+  local unique_hits = {}
+	for _, hit in ipairs(hits) do
+    local group = hit.group
+    if not unique_hits[group] then
+      unique_hits[group] = hit
+    end
+  end
+
+  return unique_hits
+end
+
 local PROJECTILE_SPEED = 200
 local DOT_RAY = vmath.vector3(0, 500, 0)
-local WORLD_GROUP = { hash("world") }
 local PROP_TINT = hash("tint")
 local PROP_ALPHA = hash("tint.w")
 local PROP_POSITION = hash("position")
 local MAX_TRAVEL_TIME = DOT_RAY.y / PROJECTILE_SPEED
+local BLUE_GROUP = hash("blue")
+local GREEN_GROUP = hash("green")
+local GROUPS = { BLUE_GROUP, GREEN_GROUP }
+local RAY_ALL = { all = true }
+local BLUE_COLOR = vmath.vector4(0.00, 0.20, 0.80, 1)
+local GREEN_COLOR = vmath.vector4(0.12, 0.90, 0.50, 1)
 local function start(self)
 	timer.delay(1.5, true, function()
 		local last_ray
 		for degrees = 1,365,0.25 do
 			local offset = vmath.rotate(vmath.quat_rotation_z(math.rad(degrees)), DOT_RAY)
-			local end_pos = self.pos + offset
+			local max_pos = self.pos + offset
 
 			local ray
 			if degrees % 1 == 0 then
-				ray = physics.raycast(self.pos, end_pos, WORLD_GROUP)
+				local new_ray = physics.raycast(self.pos, max_pos, GROUPS, RAY_ALL)
+				if new_ray then
+          local closest_hits = closest_per_group(new_ray)
+          ray = closest_hits[BLUE_GROUP] or closest_hits[GREEN_GROUP]
+				end
 				last_ray = ray
 			else
 				ray = last_ray
@@ -35,25 +62,26 @@ local function start(self)
 
 			local dot_id = factory.create(self.dot_factory, self.pos)
 			local sprite_url = msg.url(nil, dot_id, "sprite")
-			go.set(sprite_url, PROP_TINT, self.color)
+			go.set(sprite_url, PROP_TINT, BLUE_COLOR)
 
 			if ray then
-				go.animate(dot_id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, self.pos + offset * ray.fraction, go.EASING_LINEAR, vmath.length(self.pos - ray.position)/PROJECTILE_SPEED, 0, function()
-					go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.1, 0, function()
-						if degrees % 1 > 0 then return go.delete(dot_id) end
-						rotate(dot_id, ray.normal)
+				local end_pos = self.pos + offset * ray.fraction
+        local travel_time = MAX_TRAVEL_TIME * ray.fraction
+				go.animate(dot_id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, end_pos, go.EASING_LINEAR, travel_time)
+        go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.1, travel_time - 0.1, function()
+          if degrees % 1 > 0 then return go.delete(dot_id) end
+          rotate(dot_id, ray.normal)
 
-						local particle_url = msg.url(nil, dot_id, "splash")
-						particlefx.play(particle_url, function(_, _, _, state)
-							if state == particlefx.EMITTER_STATE_POSTSPAWN then
-								go.delete(dot_id)
-							end
-						end)
-						particlefx.set_constant(particle_url, "emitter", PROP_TINT, self.color)
-					end)
-				end)
+          local particle_url = msg.url(nil, dot_id, "splash")
+          particlefx.play(particle_url, function(_, _, _, state)
+            if state == particlefx.EMITTER_STATE_POSTSPAWN then
+              go.delete(dot_id)
+            end
+          end)
+          particlefx.set_constant(particle_url, "emitter", PROP_TINT, self.color)
+        end)
 			else
-				go.animate(dot_id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, end_pos, go.EASING_LINEAR, MAX_TRAVEL_TIME)
+				go.animate(dot_id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, max_pos, go.EASING_LINEAR, MAX_TRAVEL_TIME)
 				go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.2, MAX_TRAVEL_TIME - 0.2, function()
 					go.delete(dot_id)
 				end)
@@ -65,7 +93,7 @@ end
 local function move_x(self, x)
 	local new_pos = self.pos + vmath.vector3(x, 0, 0)
 
-	local ray = physics.raycast(self.pos, new_pos, {hash("world")})
+	local ray = physics.raycast(self.pos, new_pos, self.groups)
 	if not ray then
 		self.pos = new_pos
 	else
@@ -76,7 +104,7 @@ end
 local function move_y(self, y)
 	local new_pos = self.pos + vmath.vector3(0, y, 0)
 
-	local ray = physics.raycast(self.pos, new_pos, {hash("world")})
+	local ray = physics.raycast(self.pos, new_pos, self.groups)
 	if not ray then
 		self.pos = new_pos
 	else
@@ -103,6 +131,7 @@ function init(self)
 	self.velocity = vmath.vector3()
 	self.color = vmath.vector4(0, 0.2, 0.8, 1)
 	self.dot_factory = msg.url("#factory")
+	self.groups = { BLUE_GROUP }
 
 	go.set("go2#sprite", "tint", self.color * 1.5)
 	particlefx.play("go2#trail")

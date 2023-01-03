@@ -8,9 +8,15 @@ material_tag: "tile"
 convex_hulls {
   index: 0
   count: 4
-  collision_group: "world"
+  collision_group: "blue"
 }
-collision_groups: "world"
+convex_hulls {
+  index: 4
+  count: 4
+  collision_group: "green"
+}
+collision_groups: "blue"
+collision_groups: "green"
 animations {
   id: "anim"
   start_tile: 1
