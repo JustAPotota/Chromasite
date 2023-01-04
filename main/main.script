@@ -1,10 +1,10 @@
 local VECTOR_UP = vmath.vector3(0, 1, 0)
 local function rotate(id, normal)
-	if normal.y == -1 then
-		go.set(id, "euler.z", 180)
-	else
-		go.set_rotation(vmath.quat_from_to(VECTOR_UP, normal), id)
-	end
+    if normal.y == -1 then
+        go.set(id, "euler.z", 180)
+    else
+        go.set_rotation(vmath.quat_from_to(VECTOR_UP, normal), id)
+    end
 end
 
 ---@class RaycastResponse
@@ -18,177 +18,286 @@ end
 ---@param hits RaycastResponse[]
 ---@return RaycastResponse[]
 local function closest_per_group(hits)
-  local unique_hits = {}
-	for _, hit in ipairs(hits) do
-    local group = hit.group
-    if not unique_hits[group] then
-      unique_hits[group] = hit
+    local unique_hits = {}
+    local found_group = {}
+    for _, hit in ipairs(hits) do
+        local group = hit.group
+        if not found_group[group] then
+            table.insert(unique_hits, hit)
+            found_group[group] = true
+        end
     end
-  end
 
-  return unique_hits
+    return unique_hits
 end
 
-local PROJECTILE_SPEED = 200
-local DOT_RAY = vmath.vector3(0, 500, 0)
 local PROP_TINT = hash("tint")
+---@param dot_id hash
+---@param direction vector3
+---@param color vector4
+local function spawn_splash(dot_id, direction, color, delete)
+    rotate(dot_id, direction)
+
+    local particle_url = msg.url(nil, dot_id, "splash")
+    particlefx.play(particle_url, function(_, _, _, state)
+        if state == particlefx.EMITTER_STATE_POSTSPAWN and delete then
+            go.delete(dot_id)
+        end
+    end)
+    particlefx.set_constant(particle_url, "emitter", PROP_TINT, color)
+end
+
+---@param dot_id hash
+---@param direction vector3
+---@param group hash
+local function spawn_splash2(dot_id, direction, group, delete)
+    rotate(dot_id, direction)
+
+    local particle_url = msg.url(nil, dot_id, group)
+    particlefx.play(particle_url, function(_, _, _, state)
+        if state == particlefx.EMITTER_STATE_POSTSPAWN and delete then
+            go.delete(dot_id)
+        end
+    end)
+end
+
 local PROP_ALPHA = hash("tint.w")
 local PROP_POSITION = hash("position")
+local PROJECTILE_SPEED = 150
+local DOT_RAY = vmath.vector3(0, 500, 0)
 local MAX_TRAVEL_TIME = DOT_RAY.y / PROJECTILE_SPEED
+
+---@param dot_id hash
+---@param sprite_url url
+---@param to vector3
+local function spawn_miss(dot_id, sprite_url, to)
+    go.animate(dot_id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, to, go.EASING_LINEAR, MAX_TRAVEL_TIME)
+    go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.2, MAX_TRAVEL_TIME - 0.2, function()
+        go.delete(dot_id)
+    end)
+end
+
+---@param url url
+---@param color vector4
+local function set_color(url, color)
+    go.set(url, PROP_TINT, color)
+end
+
 local BLUE_GROUP = hash("blue")
 local GREEN_GROUP = hash("green")
 local GROUPS = { BLUE_GROUP, GREEN_GROUP }
 local RAY_ALL = { all = true }
 local BLUE_COLOR = vmath.vector4(0.00, 0.20, 0.80, 1)
 local GREEN_COLOR = vmath.vector4(0.12, 0.90, 0.50, 1)
-local function start(self)
-	timer.delay(1.5, true, function()
-		local last_ray
-		for degrees = 1,365,0.25 do
-			local offset = vmath.rotate(vmath.quat_rotation_z(math.rad(degrees)), DOT_RAY)
-			local max_pos = self.pos + offset
+local BLUEGREEN_COLOR = BLUE_COLOR/2 + GREEN_COLOR/2
 
-			local ray
-			if degrees % 1 == 0 then
-				local new_ray = physics.raycast(self.pos, max_pos, GROUPS, RAY_ALL)
-				if new_ray then
-          local closest_hits = closest_per_group(new_ray)
-          ray = closest_hits[BLUE_GROUP] or closest_hits[GREEN_GROUP]
-				end
-				last_ray = ray
-			else
-				ray = last_ray
-			end
+---@type { [hash]: vector4 }
+local COLOR_MAP = {
+    [BLUE_GROUP] = BLUE_COLOR,
+    [GREEN_GROUP] = GREEN_COLOR
+}
 
-			local dot_id = factory.create(self.dot_factory, self.pos)
-			local sprite_url = msg.url(nil, dot_id, "sprite")
-			go.set(sprite_url, PROP_TINT, BLUE_COLOR)
+---@param self Self
+local function pulse_sonar(self)
+    local last_ray
+    local last_hits
+    for degrees = 1,365,0.25 do
+        local simple = degrees % 1 ~= 0
+        local radians = math.rad(degrees)
+        local offset = vmath.rotate(vmath.quat_rotation_z(radians), DOT_RAY)
+        local max_pos = self.pos + offset
 
-			if ray then
-				local end_pos = self.pos + offset * ray.fraction
-        local travel_time = MAX_TRAVEL_TIME * ray.fraction
-				go.animate(dot_id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, end_pos, go.EASING_LINEAR, travel_time)
-        go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.1, travel_time - 0.1, function()
-          if degrees % 1 > 0 then return go.delete(dot_id) end
-          rotate(dot_id, ray.normal)
-
-          local particle_url = msg.url(nil, dot_id, "splash")
-          particlefx.play(particle_url, function(_, _, _, state)
-            if state == particlefx.EMITTER_STATE_POSTSPAWN then
-              go.delete(dot_id)
+        local ray
+        local closest_hits
+        if simple then
+            ray = last_ray
+            closest_hits = last_hits
+        else
+            local new_ray = physics.raycast(self.pos, max_pos, GROUPS, RAY_ALL)
+            if new_ray then
+                closest_hits = closest_per_group(new_ray)
+                ray = closest_hits[1]
             end
-          end)
-          particlefx.set_constant(particle_url, "emitter", PROP_TINT, self.color)
-        end)
-			else
-				go.animate(dot_id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, max_pos, go.EASING_LINEAR, MAX_TRAVEL_TIME)
-				go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.2, MAX_TRAVEL_TIME - 0.2, function()
-					go.delete(dot_id)
-				end)
-			end
-		end
-	end)
+            last_ray = ray
+            last_hits = closest_hits
+        end
+
+        local dot_id = factory.create(self.dot_factory, self.pos)
+        local sprite_url = msg.url(nil, dot_id, "sprite")
+        set_color(sprite_url, BLUE_COLOR)
+
+        if ray then
+            if #closest_hits == 2 then
+                set_color(sprite_url, BLUEGREEN_COLOR)
+                local first_hit = closest_hits[1]
+                local last_hit = closest_hits[#closest_hits]
+
+                local first_color = COLOR_MAP[first_hit.group]
+                local last_color = COLOR_MAP[last_hit.group]
+
+                if MAX_TRAVEL_TIME * first_hit.fraction > MAX_TRAVEL_TIME * last_hit.fraction - 0.1 then
+                end
+
+                local a = false
+                local end_pos = self.pos + offset * last_hit.fraction
+                local travel_time = MAX_TRAVEL_TIME * last_hit.fraction
+                go.animate(dot_id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, end_pos, go.EASING_LINEAR, travel_time)
+                go.animate(sprite_url, PROP_TINT, go.PLAYBACK_ONCE_FORWARD, last_color, go.EASING_LINEAR, 0.1, MAX_TRAVEL_TIME * first_hit.fraction - 0.1, function()
+                    if not simple then
+                        spawn_splash2(dot_id, first_hit.normal, first_hit.group)
+                    end
+                end)
+                -- timer.delay(MAX_TRAVEL_TIME * first_hit.fraction, false, function()
+                --     if not simple then
+                --         spawn_splash(dot_id, first_hit.normal, COLOR_MAP[first_hit.group])
+                --     end
+                --     if a then
+                --         print("god")
+                --     end
+                --     set_color(sprite_url, COLOR_MAP[last_hit.group])
+                -- end)
+                go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.1, travel_time - 0.1, function()
+                    if simple then
+                        go.delete(dot_id)
+                    else
+                        spawn_splash2(dot_id, last_hit.normal, last_hit.group, true)
+                    end
+                    a = true
+                end)
+            else
+                local end_pos = self.pos + offset * ray.fraction
+                local travel_time = MAX_TRAVEL_TIME * ray.fraction
+                go.animate(dot_id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, end_pos, go.EASING_LINEAR, travel_time)
+                go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.1, travel_time - 0.1, function()
+                    if degrees % 1 > 0 then
+                        go.delete(dot_id)
+                    else
+                        spawn_splash(dot_id, ray.normal, self.color, true)
+                    end
+                end)
+            end
+        else
+            spawn_miss(dot_id, sprite_url, max_pos)
+        end
+    end
 end
 
+local function start()
+    timer.delay(1.5, true, pulse_sonar)
+end
+
+---@param self Self
+---@param x number
 local function move_x(self, x)
-	local new_pos = self.pos + vmath.vector3(x, 0, 0)
+    local new_pos = self.pos + vmath.vector3(x, 0, 0)
 
-	local ray = physics.raycast(self.pos, new_pos, self.groups)
-	if not ray then
-		self.pos = new_pos
-	else
-		self.velocity.x = self.velocity.x * -0.5
-	end
+    local ray = physics.raycast(self.pos, new_pos, self.groups)
+    if not ray then
+        self.pos = new_pos
+    else
+        self.velocity.x = self.velocity.x * -0.5
+    end
 end
 
+---@param self Self
+---@param y number
 local function move_y(self, y)
-	local new_pos = self.pos + vmath.vector3(0, y, 0)
+    local new_pos = self.pos + vmath.vector3(0, y, 0)
 
-	local ray = physics.raycast(self.pos, new_pos, self.groups)
-	if not ray then
-		self.pos = new_pos
-	else
-		self.velocity.y = self.velocity.y * -0.5
-	end
+    local ray = physics.raycast(self.pos, new_pos, self.groups)
+    if not ray then
+        self.pos = new_pos
+    else
+        self.velocity.y = self.velocity.y * -0.5
+    end
 end
 
 local function move(self, offset)
-	if vmath.length_sqr(offset) == 0 then return end
+    if vmath.length_sqr(offset) == 0 then return end
 
-	if offset.x ~= 0 then
-		move_x(self, offset.x)
-	end
-	if offset.y ~= 0 then
-		move_y(self, offset.y)
-	end
+    if math.abs(offset.x) > 0.001 then
+        move_x(self, offset.x)
+    end
+    if math.abs(offset.y) > 0.001 then
+        move_y(self, offset.y)
+    end
 end
 
+---@class Self
+---@field pos vector3
+---@field input vector3
+---@field velocity vector3
+---@field color vector4
+---@field dot_factory url
+---@field groups hash[]
+
+---@param self Self
 function init(self)
-	msg.post(".", "acquire_input_focus")
-	MAP_X, MAP_Y, MAP_W, MAP_H = tilemap.get_bounds("/map#map")
-	self.pos = vmath.vector3(480, 320, 1)
-	self.input = vmath.vector3()
-	self.velocity = vmath.vector3()
-	self.color = vmath.vector4(0, 0.2, 0.8, 1)
-	self.dot_factory = msg.url("#factory")
-	self.groups = { BLUE_GROUP }
+    msg.post(".", "acquire_input_focus")
+    MAP_X, MAP_Y, MAP_W, MAP_H = tilemap.get_bounds("/map#map")
+    self.pos = vmath.vector3(480, 320, 1)
+    self.input = vmath.vector3()
+    self.velocity = vmath.vector3()
+    self.color = vmath.vector4(0, 0.2, 0.8, 1)
+    self.dot_factory = msg.url("#factory")
+    self.groups = { BLUE_GROUP }
 
-	go.set("go2#sprite", "tint", self.color * 1.5)
-	particlefx.play("go2#trail")
-	particlefx.set_constant("go2#trail", "emitter", "tint", self.color)
+    go.set("go2#sprite", "tint", self.color * 1.5)
+    particlefx.play("go2#trail")
+    particlefx.set_constant("go2#trail", "emitter", "tint", self.color)
 
-	start(self)
+    start()
 end
 
 function final(self)
-	-- Add finalization code here
-	-- Learn more: https://defold.com/manuals/script/
-	-- Remove this function if not needed
+    -- Add finalization code here
+    -- Learn more: https://defold.com/manuals/script/
+    -- Remove this function if not needed
 end
 
 local ACCELERATION = 500
 function update(self, dt)
-	if vmath.length_sqr(self.input) > 0 then
-		self.velocity = self.velocity + vmath.normalize(self.input) * ACCELERATION * dt
-	end
-	self.velocity = self.velocity * 0.99
-	move(self, self.velocity * dt)
-	go.set_position(self.pos, "go2")
-	self.input.x, self.input.y = 0, 0
+    if vmath.length_sqr(self.input) > 0 then
+        self.velocity = self.velocity + vmath.normalize(self.input) * ACCELERATION * dt
+    end
+    self.velocity = self.velocity * 0.99
+    move(self, self.velocity * dt)
+    go.set_position(self.pos, "go2")
+    self.input.x, self.input.y = 0, 0
 end
 
 function fixed_update(self, dt)
-	-- Add update code here
-	-- Learn more: https://defold.com/manuals/script/
-	-- Remove this function if not needed
+    -- Add update code here
+    -- Learn more: https://defold.com/manuals/script/
+    -- Remove this function if not needed
 end
 
 function on_message(self, message_id, message, sender)
-	-- Add message-handling code here
-	-- Learn more: https://defold.com/manuals/message-passing/
-	-- Remove this function if not needed
+    -- Add message-handling code here
+    -- Learn more: https://defold.com/manuals/message-passing/
+    -- Remove this function if not needed
 end
 
 function on_input(self, action_id, action)
-	if action_id == hash("up") then
-		self.input.y = 1
-	elseif action_id == hash("down") then
-		self.input.y = -1
-	elseif action_id == hash("left") then
-		self.input.x = -1
-	elseif action_id == hash("right") then
-		self.input.x = 1
-	end
+    if action_id == hash("up") then
+        self.input.y = 1
+    elseif action_id == hash("down") then
+        self.input.y = -1
+    elseif action_id == hash("left") then
+        self.input.x = -1
+    elseif action_id == hash("right") then
+        self.input.x = 1
+    end
 
-	if action.pressed then
-		if action_id == hash("p") then
-			msg.post("@system:", "toggle_profile")
-		end
-	end
+    if action.pressed then
+        if action_id == hash("p") then
+            msg.post("@system:", "toggle_profile")
+        end
+    end
 end
 
 function on_reload(self)
-	-- Add reload-handling code here
-	-- Learn more: https://defold.com/manuals/hot-reload/
-	-- Remove this function if not needed
+    -- Add reload-handling code here
+    -- Learn more: https://defold.com/manuals/hot-reload/
+    -- Remove this function if not needed
 end
