@@ -1,9 +1,12 @@
 ---@class vector3
+---@operator add(vector3): vector3
 ---@field x number
 ---@field y number
 ---@field z number
 
 ---@class vector4
+---@operator add(vector4): vector4
+---@operator div(number): vector4
 ---@field x number
 ---@field y number
 ---@field z number
@@ -18,9 +21,9 @@
 ---@alias quat quaternion
 
 ---@class url
----@field socket
----@field path
----@field fragment
+---@field socket hash
+---@field path hash
+---@field fragment hash
 
 ---@alias hash userdata
 ---@alias constant userdata

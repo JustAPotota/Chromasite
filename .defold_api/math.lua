@@ -107,6 +107,7 @@ function math.pow(x, y) end
 
 ---Returns the angle x (given in degrees) in radians.
 ---@param x  
+---@return number
 function math.rad(x) end
 
 ---This function is an interface to the simple
