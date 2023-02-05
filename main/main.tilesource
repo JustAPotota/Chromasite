@@ -1,9 +1,9 @@
-image: "/assets/images/Untitled.png"
+image: "/assets/images/tiles.png"
 tile_width: 64
 tile_height: 64
 tile_margin: 0
 tile_spacing: 0
-collision: "/assets/images/Untitled.png"
+collision: "/assets/images/tiles.png"
 material_tag: "tile"
 convex_hulls {
   index: 0

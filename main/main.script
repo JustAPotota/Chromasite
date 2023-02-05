@@ -32,47 +32,31 @@ local function closest_per_group(hits)
 end
 
 ---@param hits RaycastResponse[]
----@return { [hash]: RaycastResponse }
+---@return { [hash]: RaycastResponse }, number
 local function cpg(hits)
+    local count = 0
     local filtered_hits = {}
     for _, hit in ipairs(hits) do
         local group = hit.group
         if not filtered_hits[group] then
             filtered_hits[group] = hit
+            count = count + 1
         end
     end
 
-    return filtered_hits
+    return filtered_hits, count
 end
 
 local PROP_TINT = hash("tint")
----@param dot_id hash
----@param direction vector3
----@param color vector4
-local function spawn_splash(dot_id, direction, color, delete)
-    rotate(dot_id, direction)
-
-    local particle_url = msg.url(nil, dot_id, "splash")
-    particlefx.play(particle_url, function(_, _, _, state)
-        if state == particlefx.EMITTER_STATE_POSTSPAWN and delete then
-            go.delete(dot_id)
-        end
-    end)
-    particlefx.set_constant(particle_url, "emitter", PROP_TINT, color)
-end
 
 ---@param dot_id hash
 ---@param direction vector3
 ---@param group hash
-local function spawn_splash2(dot_id, direction, group, delete)
+local function spawn_splash(dot_id, direction, group)
     rotate(dot_id, direction)
 
     local particle_url = msg.url(nil, dot_id, group)
-    particlefx.play(particle_url, function(_, _, _, state)
-        if state == particlefx.EMITTER_STATE_POSTSPAWN and delete then
-            go.delete(dot_id)
-        end
-    end)
+    particlefx.play(particle_url)
 end
 
 local PROP_ALPHA = hash("tint.w")
@@ -80,16 +64,6 @@ local PROP_POSITION = hash("position")
 local PROJECTILE_SPEED = 150
 local DOT_RAY = vmath.vector3(0, 500, 0)
 local MAX_TRAVEL_TIME = DOT_RAY.y / PROJECTILE_SPEED
-
----@param dot_id hash
----@param sprite_url url
----@param to vector3
-local function spawn_miss(dot_id, sprite_url, to)
-    go.animate(dot_id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, to, go.EASING_LINEAR, MAX_TRAVEL_TIME)
-    go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.2, MAX_TRAVEL_TIME - 0.2, function()
-        go.delete(dot_id)
-    end)
-end
 
 ---@param url url
 ---@param color vector4
@@ -126,58 +100,62 @@ local COLOR_MAP = {
     [GREEN_GROUP] = GREEN_COLOR
 }
 
+local COLORS = 2
+
 ---@param self Self
 local function pulse_sonar(self)
-    local last_ray
     local last_hits
     local b
+    local last_c = 0
     for degrees = 1,365,0.25 do
         local simple = degrees % 1 ~= 0
         local radians = math.rad(degrees)
         local offset = vmath.rotate(vmath.quat_rotation_z(radians), DOT_RAY)
         local max_pos = self.pos + offset
 
-        ---@type RaycastResponse
-        local ray
         local closest_hits
         local aaaaa
+        local c = 0
         if simple then
-            ray = last_ray
             closest_hits = last_hits
             aaaaa = b
+            c = last_c
         else
             local new_ray = physics.raycast(self.pos, max_pos, GROUPS, RAY_ALL)
             if new_ray then
                 closest_hits = closest_per_group(new_ray)
-                ray = closest_hits[1]
-                aaaaa = cpg(new_ray)
+                aaaaa, c = cpg(new_ray)
             end
-            last_ray = ray
             last_hits = closest_hits
             b = aaaaa
+            last_c = c
         end
 
         local dot_id = factory.create(self.dot_factory, self.pos)
         local sprite_url = msg.url(nil, dot_id, "sprite")
         set_color(sprite_url, BLUEGREEN_COLOR)
 
-        go.animate(dot_id, "position", go.PLAYBACK_ONCE_FORWARD, max_pos, go.EASING_LINEAR, MAX_TRAVEL_TIME)
-        go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.2, MAX_TRAVEL_TIME - 0.2, function()
-            go.delete(dot_id)
-        end)
+        go.animate(dot_id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, max_pos, go.EASING_LINEAR, MAX_TRAVEL_TIME)
+
+        if c < COLORS then
+            go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.2, MAX_TRAVEL_TIME - 0.2, function()
+                go.delete(dot_id)
+            end)
+        end
 
         if aaaaa then
+            local i = 0
             for group, hit in pairs(aaaaa) do
                 local delay = hit.fraction * MAX_TRAVEL_TIME
                 timer.delay(delay, false, function()
                     remove_color(sprite_url, COLOR_MAP[group])
 
                     if degrees % 2 == 0 then
-                        spawn_splash2(dot_id, hit.normal, group, false)
+                        spawn_splash(dot_id, hit.normal, group)
                     end
 
-                    local color = get_color(sprite_url)
-                    if color.x + color.y + color.z < 0.1  then
+                    i = i + 1
+                    if i == COLORS then
                         go.delete(dot_id)
                     end
                 end)
