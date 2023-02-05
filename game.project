@@ -14,17 +14,16 @@ input_method = HiddenInputField
 
 [project]
 title = My Project
-dependencies#0 = https://github.com/selimanac/DAABBCC/archive/refs/heads/v2.1.zip
-dependencies#1 = https://github.com/britzl/defold-orthographic/archive/refs/tags/3.2.1.zip
+dependencies#0 = https://github.com/britzl/defold-orthographic/archive/refs/tags/3.2.1.zip
 
 [sprite]
-max_count = 4096
+max_count = 5000
 
 [collection]
-max_instances = 4096
+max_instances = 5000
 
 [particle_fx]
 max_emitter_count = 4096
-max_count = 12288
+max_count = 13288
 max_particle_count = 8192
 

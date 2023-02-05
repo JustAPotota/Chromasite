@@ -31,6 +31,20 @@ local function closest_per_group(hits)
     return unique_hits
 end
 
+---@param hits RaycastResponse[]
+---@return { [hash]: RaycastResponse }
+local function cpg(hits)
+    local filtered_hits = {}
+    for _, hit in ipairs(hits) do
+        local group = hit.group
+        if not filtered_hits[group] then
+            filtered_hits[group] = hit
+        end
+    end
+
+    return filtered_hits
+end
+
 local PROP_TINT = hash("tint")
 ---@param dot_id hash
 ---@param direction vector3
@@ -83,6 +97,21 @@ local function set_color(url, color)
     go.set(url, PROP_TINT, color)
 end
 
+---@param url url
+---@return vector4
+local function get_color(url)
+    return go.get(url, PROP_TINT)
+end
+
+local function remove_color(url, color)
+    local current = get_color(url)
+    current.x = current.x - color.x/2
+    current.y = current.y - color.y/2
+    current.z = current.z - color.z/2
+
+    set_color(url, current)
+end
+
 local BLUE_GROUP = hash("blue")
 local GREEN_GROUP = hash("green")
 local GROUPS = { BLUE_GROUP, GREEN_GROUP }
@@ -101,83 +130,58 @@ local COLOR_MAP = {
 local function pulse_sonar(self)
     local last_ray
     local last_hits
+    local b
     for degrees = 1,365,0.25 do
         local simple = degrees % 1 ~= 0
         local radians = math.rad(degrees)
         local offset = vmath.rotate(vmath.quat_rotation_z(radians), DOT_RAY)
         local max_pos = self.pos + offset
 
+        ---@type RaycastResponse
         local ray
         local closest_hits
+        local aaaaa
         if simple then
             ray = last_ray
             closest_hits = last_hits
+            aaaaa = b
         else
             local new_ray = physics.raycast(self.pos, max_pos, GROUPS, RAY_ALL)
             if new_ray then
                 closest_hits = closest_per_group(new_ray)
                 ray = closest_hits[1]
+                aaaaa = cpg(new_ray)
             end
             last_ray = ray
             last_hits = closest_hits
+            b = aaaaa
         end
 
         local dot_id = factory.create(self.dot_factory, self.pos)
         local sprite_url = msg.url(nil, dot_id, "sprite")
-        set_color(sprite_url, BLUE_COLOR)
+        set_color(sprite_url, BLUEGREEN_COLOR)
 
-        if ray then
-            if #closest_hits == 2 then
-                set_color(sprite_url, BLUEGREEN_COLOR)
-                local first_hit = closest_hits[1]
-                local last_hit = closest_hits[#closest_hits]
+        go.animate(dot_id, "position", go.PLAYBACK_ONCE_FORWARD, max_pos, go.EASING_LINEAR, MAX_TRAVEL_TIME)
+        go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.2, MAX_TRAVEL_TIME - 0.2, function()
+            go.delete(dot_id)
+        end)
 
-                local first_color = COLOR_MAP[first_hit.group]
-                local last_color = COLOR_MAP[last_hit.group]
+        if aaaaa then
+            for group, hit in pairs(aaaaa) do
+                local delay = hit.fraction * MAX_TRAVEL_TIME
+                timer.delay(delay, false, function()
+                    remove_color(sprite_url, COLOR_MAP[group])
 
-                if MAX_TRAVEL_TIME * first_hit.fraction > MAX_TRAVEL_TIME * last_hit.fraction - 0.1 then
-                end
-
-                local a = false
-                local end_pos = self.pos + offset * last_hit.fraction
-                local travel_time = MAX_TRAVEL_TIME * last_hit.fraction
-                go.animate(dot_id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, end_pos, go.EASING_LINEAR, travel_time)
-                go.animate(sprite_url, PROP_TINT, go.PLAYBACK_ONCE_FORWARD, last_color, go.EASING_LINEAR, 0.1, MAX_TRAVEL_TIME * first_hit.fraction - 0.1, function()
-                    if not simple then
-                        spawn_splash2(dot_id, first_hit.normal, first_hit.group)
+                    if degrees % 2 == 0 then
+                        spawn_splash2(dot_id, hit.normal, group, false)
                     end
-                end)
-                -- timer.delay(MAX_TRAVEL_TIME * first_hit.fraction, false, function()
-                --     if not simple then
-                --         spawn_splash(dot_id, first_hit.normal, COLOR_MAP[first_hit.group])
-                --     end
-                --     if a then
-                --         print("god")
-                --     end
-                --     set_color(sprite_url, COLOR_MAP[last_hit.group])
-                -- end)
-                go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.1, travel_time - 0.1, function()
-                    if simple then
+
+                    local color = get_color(sprite_url)
+                    if color.x + color.y + color.z < 0.1  then
                         go.delete(dot_id)
-                    else
-                        spawn_splash2(dot_id, last_hit.normal, last_hit.group, true)
-                    end
-                    a = true
-                end)
-            else
-                local end_pos = self.pos + offset * ray.fraction
-                local travel_time = MAX_TRAVEL_TIME * ray.fraction
-                go.animate(dot_id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, end_pos, go.EASING_LINEAR, travel_time)
-                go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.1, travel_time - 0.1, function()
-                    if degrees % 1 > 0 then
-                        go.delete(dot_id)
-                    else
-                        spawn_splash(dot_id, ray.normal, self.color, true)
                     end
                 end)
             end
-        else
-            spawn_miss(dot_id, sprite_url, max_pos)
         end
     end
 end
