@@ -97,6 +97,7 @@ local RAY_ALL = { all = true }
 local BLUE_COLOR = vmath.vector4(0.00, 0.20, 0.80, 1)
 local GREEN_COLOR = vmath.vector4(0.12, 0.90, 0.50, 1)
 local BLUEGREEN_COLOR = BLUE_COLOR/2 + GREEN_COLOR/2
+local EMPTY_COLOR = vmath.vector4(0.05, 0.05, 0.05, 1)
 
 ---@type { [hash]: vector4 }
 local COLOR_MAP = {
@@ -115,12 +116,20 @@ end
 
 ---@param self Self
 local function pulse_sonar(self)
+	local color_count = #self.groups
+	if color_count == 0 then return end
+
 	self.sonar_ready = false
+
+	local initial_color = vmath.vector4()
+	for _, group in ipairs(self.groups) do
+		initial_color = initial_color + COLOR_MAP[group]/color_count
+	end
 
 	---@type { [url]: bool }
 	local active_dots = {}
 	for degrees = 1,360 do
-		local ray = physics.raycast(self.pos, self.pos + OFFSETS[degrees], self.colors, RAY_ALL)
+		local ray = physics.raycast(self.pos, self.pos + OFFSETS[degrees], self.groups, RAY_ALL)
 		local hits, num_hits
 		if ray then
 			hits, num_hits = cpg(ray)
@@ -132,7 +141,7 @@ local function pulse_sonar(self)
 		for degrees = degrees-0.25, degrees+0.50, 0.25 do
 			local dot = factory.create(self.dot_factory, self.pos)
 			local sprite = msg.url(nil, dot, "sprite")
-			set_color(sprite, BLUEGREEN_COLOR)
+			set_color(sprite, initial_color)
 			active_dots[dot] = true
 
 			table.insert(dots, {
@@ -147,7 +156,7 @@ local function pulse_sonar(self)
 		end
 
 		-- If not all the colors got used up
-		if not hits or num_hits < COLORS then
+		if not hits or num_hits < color_count then
 			timer.delay(MAX_TRAVEL_TIME - 0.2, false, function()
 				for _, dot in ipairs(dots) do
 					fade_out(dot.sprite, 0.2)
@@ -169,7 +178,7 @@ local function pulse_sonar(self)
 					end
 
 					i = i + 1
-					if i == COLORS then
+					if i == color_count then
 						for _, dot in ipairs(dots) do
 							active_dots[dot.id] = nil
 							go.delete(dot.id)
@@ -188,16 +197,12 @@ local function pulse_sonar(self)
 	end)
 end
 
-local function start()
-	timer.delay(1.5, true, pulse_sonar)
-end
-
 ---@param self Self
 ---@param x number
 local function move_x(self, x)
 	local new_pos = self.pos + vmath.vector3(x, 0, 0)
 
-	local ray = physics.raycast(self.pos, new_pos, self.colors)
+	local ray = physics.raycast(self.pos, new_pos, self.groups)
 	if not ray then
 		self.pos = new_pos
 	else
@@ -210,7 +215,7 @@ end
 local function move_y(self, y)
 	local new_pos = self.pos + vmath.vector3(0, y, 0)
 
-	local ray = physics.raycast(self.pos, new_pos, self.colors)
+	local ray = physics.raycast(self.pos, new_pos, self.groups)
 	if not ray then
 		self.pos = new_pos
 	else
@@ -229,30 +234,43 @@ local function move(self, offset)
 	end
 end
 
+---@param self Self
+local function update_color(self)
+	self.color = vmath.vector4()
+	if #self.groups == 0 then
+		self.color = EMPTY_COLOR
+	else
+		for _, group in ipairs(self.groups) do
+			self.color = self.color + COLOR_MAP[group]/#self.groups
+		end
+	end
+	set_color(msg.url("go2#sprite"), self.color * 1.5)
+	particlefx.set_constant("go2#trail", "emitter", "tint", self.color)
+end
+
 ---@class Self
 ---@field pos vector3
 ---@field input vector3
 ---@field velocity vector3
 ---@field color vector4
 ---@field dot_factory url
----@field colors hash[]
+---@field groups hash[]
 ---@field sonar_ready bool
 ---@field sonar_timer userdata
 
 ---@param self Self
 function init(self)
 	msg.post(".", "acquire_input_focus")
+	particlefx.play("go2#trail")
 	MAP_X, MAP_Y, MAP_W, MAP_H = tilemap.get_bounds("/map#map")
 	self.pos = vmath.vector3(480, 320, 1)
 	self.input = vmath.vector3()
 	self.velocity = vmath.vector3()
-	self.color = vmath.vector4(0, 0.2, 0.8, 1)
 	self.dot_factory = msg.url("#factory")
-	self.colors = {}
+	self.groups = {GREEN_GROUP}
 
-	go.set("go2#sprite", "tint", self.color * 1.5)
-	particlefx.play("go2#trail")
-	particlefx.set_constant("go2#trail", "emitter", "tint", self.color)
+	self.color = vmath.vector4()
+	update_color(self)
 
 	self.sonar_ready = true
 	self.sonar_timer = timer.delay(1.5, true, pulse_sonar)
@@ -293,6 +311,36 @@ function on_message(self, message_id, message, sender)
 	-- Remove this function if not needed
 end
 
+---@param t table
+---@param v any
+---@return number?
+local function find_in_table(t, v)
+	for i, value in ipairs(t) do
+		if value == v then
+			return i
+		end
+	end
+end
+
+---@param self Self
+---@param group hash
+local function add_group(self, group)
+	table.insert(self.groups, group)
+	update_color(self)
+end
+
+---@param self Self
+---@param group hash
+local function toggle_group(self, group)
+	local index = find_in_table(self.groups, group)
+	if index then
+		table.remove(self.groups, index)
+		update_color(self)
+	else
+		add_group(self, group)
+	end
+end
+
 ---@param self Self
 function on_input(self, action_id, action)
 	if action_id == hash("up") then
@@ -311,6 +359,12 @@ function on_input(self, action_id, action)
 				pulse_sonar(self)
 			end
 			self.sonar_timer = timer.delay(1.5, true, pulse_sonar)
+		end
+	elseif action.pressed then
+		if action_id == hash("one") then
+			toggle_group(self, BLUE_GROUP)
+		elseif action_id == hash("two") then
+			toggle_group(self, GREEN_GROUP)
 		end
 	end
 

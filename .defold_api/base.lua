@@ -5,6 +5,7 @@
 ---@operator add(vector3): vector3
 ---@operator sub(vector3): vector3
 ---@operator div(number): vector3
+---@operator mul(number): vector3
 
 ---@class vector4
 ---@field x number
@@ -14,6 +15,7 @@
 ---@operator add(vector4): vector4
 ---@operator sub(vector4): vector4
 ---@operator div(number): vector4
+---@operator mul(number): vector4
 
 ---@class quaternion
 ---@field x number
