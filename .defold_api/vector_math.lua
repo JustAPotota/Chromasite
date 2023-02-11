@@ -340,66 +340,16 @@ function vmath.slerp(t, v1, v2) end
 ---@return quaternion the slerped quaternion
 function vmath.slerp(t, q1, q2) end
 
----Creates a vector of arbitrary size. The vector is initialized
----with numeric values from a table.
---- The table values are converted to floating point
----values. If a value cannot be converted, a 0 is stored in that
----value position in the vector.
----@param t table table of numbers
----@return vector new vector
-function vmath.vector(t) end
-
----Creates a new zero vector with all components set to 0.
----@return vector3 new zero vector
-function vmath.vector3() end
-
----Creates a new vector with all components set to the
----supplied scalar value.
----@param n number scalar value to splat
----@return vector3 new vector
-function vmath.vector3(n) end
-
----Creates a new vector with all components set to the
----corresponding values from the supplied vector. I.e.
----This function creates a copy of the given vector.
----@param v1 vector3 existing vector
----@return vector3 new vector
-function vmath.vector3(v1) end
-
----Creates a new vector with the components set to the
----supplied values.
----@param x number x coordinate
----@param y number y coordinate
----@param z number z coordinate
----@return vector3 new vector
+---@param x number|vector3|nil
+---@param y number?
+---@param z number?
+---@return vector3
 function vmath.vector3(x, y, z) end
 
----Creates a new zero vector with all components set to 0.
----@return vector4 new zero vector
+---@return vector4
+---@overload fun(v1: vector4): vector4
+---@overload fun(x: number, y: number, z: number, w: number): vector4
 function vmath.vector4() end
-
----Creates a new vector with all components set to the
----supplied scalar value.
----@param n number scalar value to splat
----@return vector4 new vector
-function vmath.vector4(n) end
-
----Creates a new vector with all components set to the
----corresponding values from the supplied vector. I.e.
----This function creates a copy of the given vector.
----@param v1 vector4 existing vector
----@return vector4 new vector
-function vmath.vector4(v1) end
-
----Creates a new vector with the components set to the
----supplied values.
----@param x number x coordinate
----@param y number y coordinate
----@param z number z coordinate
----@param w number w coordinate
----@return vector4 new vector
-function vmath.vector4(x, y, z, w) end
-
 
 
 

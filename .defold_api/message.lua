@@ -18,37 +18,10 @@ msg = {}
 ---@param message table|nil a lua table with message parameters to send.
 function msg.post(receiver, message_id, message) end
 
----This is equivalent to msg.url(nil) or msg.url("#"), which creates an url to the current
----script component.
----@return url a new URL
+---@return url
+---@overload fun(urlstring: string): url
+---@overload fun(socket: string|hash|nil, path: string|hash|nil, fragment: string|hash|nil): url
 function msg.url() end
-
----The format of the string must be [socket:][path][#fragment], which is similar to a HTTP URL.
----When addressing instances:
----
----
---- * socket is the name of a valid world (a collection)
----
---- * path is the id of the instance, which can either be relative the instance of the calling script or global
----
---- * fragment would be the id of the desired component
----
----In addition, the following shorthands are available:
----
----
---- * "." the current game object
----
---- * "#" the current component
----@param urlstring string string to create the url from
----@return url a new URL
-function msg.url(urlstring) end
-
----creates a new URL from separate arguments
----@param socket string|hash? socket of the URL
----@param path string|hash? path of the URL
----@param fragment string|hash? fragment of the URL
----@return url a new URL
-function msg.url(socket, path, fragment) end
 
 
 

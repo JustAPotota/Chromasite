@@ -120,7 +120,7 @@ local function pulse_sonar(self)
 	---@type { [url]: bool }
 	local active_dots = {}
 	for degrees = 1,360 do
-		local ray = physics.raycast(self.pos, self.pos + OFFSETS[degrees], GROUPS, RAY_ALL)
+		local ray = physics.raycast(self.pos, self.pos + OFFSETS[degrees], self.colors, RAY_ALL)
 		local hits, num_hits
 		if ray then
 			hits, num_hits = cpg(ray)
@@ -197,7 +197,7 @@ end
 local function move_x(self, x)
 	local new_pos = self.pos + vmath.vector3(x, 0, 0)
 
-	local ray = physics.raycast(self.pos, new_pos, self.groups)
+	local ray = physics.raycast(self.pos, new_pos, self.colors)
 	if not ray then
 		self.pos = new_pos
 	else
@@ -210,7 +210,7 @@ end
 local function move_y(self, y)
 	local new_pos = self.pos + vmath.vector3(0, y, 0)
 
-	local ray = physics.raycast(self.pos, new_pos, self.groups)
+	local ray = physics.raycast(self.pos, new_pos, self.colors)
 	if not ray then
 		self.pos = new_pos
 	else
@@ -235,7 +235,7 @@ end
 ---@field velocity vector3
 ---@field color vector4
 ---@field dot_factory url
----@field groups hash[]
+---@field colors hash[]
 ---@field sonar_ready bool
 ---@field sonar_timer userdata
 
@@ -248,7 +248,7 @@ function init(self)
 	self.velocity = vmath.vector3()
 	self.color = vmath.vector4(0, 0.2, 0.8, 1)
 	self.dot_factory = msg.url("#factory")
-	self.groups = { BLUE_GROUP }
+	self.colors = {}
 
 	go.set("go2#sprite", "tint", self.color * 1.5)
 	particlefx.play("go2#trail")

@@ -1,16 +1,19 @@
 ---@class vector3
----@operator add(vector3): vector3
 ---@field x number
 ---@field y number
 ---@field z number
+---@operator add(vector3): vector3
+---@operator sub(vector3): vector3
+---@operator div(number): vector3
 
 ---@class vector4
----@operator add(vector4): vector4
----@operator div(number): vector4
 ---@field x number
 ---@field y number
 ---@field z number
 ---@field w number
+---@operator add(vector4): vector4
+---@operator sub(vector4): vector4
+---@operator div(number): vector4
 
 ---@class quaternion
 ---@field x number
