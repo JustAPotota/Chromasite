@@ -86,6 +86,10 @@ local function remove_color(url, color)
     set_color(url, current)
 end
 
+local function fade_out(url, duration)
+	go.animate(url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, duration)
+end
+
 local BLUE_GROUP = hash("blue")
 local GREEN_GROUP = hash("green")
 local GROUPS = { BLUE_GROUP, GREEN_GROUP }
@@ -102,66 +106,83 @@ local COLOR_MAP = {
 
 local COLORS = 2
 
+---@type { [number]: vector3}
+local OFFSETS = {}
+for degrees = 0,361,0.25 do
+	local radians = math.rad(degrees)
+	OFFSETS[degrees] = vmath.rotate(vmath.quat_rotation_z(radians), DOT_RAY)
+end
+
 ---@param self Self
 local function pulse_sonar(self)
-    local last_hits
-    local b
-    local last_c = 0
-    for degrees = 1,365,0.25 do
-        local simple = degrees % 1 ~= 0
-        local radians = math.rad(degrees)
-        local offset = vmath.rotate(vmath.quat_rotation_z(radians), DOT_RAY)
-        local max_pos = self.pos + offset
+	---@type { [url]: bool }
+	local active_dots = {}
+    for degrees = 1,360 do
+		local ray = physics.raycast(self.pos, self.pos + OFFSETS[degrees], GROUPS, RAY_ALL)
+		local hits, num_hits
+		if ray then
+			hits, num_hits = cpg(ray)
+		end
 
-        local closest_hits
-        local aaaaa
-        local c = 0
-        if simple then
-            closest_hits = last_hits
-            aaaaa = b
-            c = last_c
-        else
-            local new_ray = physics.raycast(self.pos, max_pos, GROUPS, RAY_ALL)
-            if new_ray then
-                closest_hits = closest_per_group(new_ray)
-                aaaaa, c = cpg(new_ray)
-            end
-            last_hits = closest_hits
-            b = aaaaa
-            last_c = c
+		local dots = {}
+
+		-- degrees = X.75, X.00, X.25, X.50
+		for degrees = degrees-0.25, degrees+0.50, 0.25 do
+			local dot = factory.create(self.dot_factory, self.pos)
+			local sprite = msg.url(nil, dot, "sprite")
+			set_color(sprite, BLUEGREEN_COLOR)
+			active_dots[dot] = true
+
+			table.insert(dots, {
+				id = dot,
+				sprite = sprite,
+				degrees = degrees
+			})
+		end
+
+		for _, dot in ipairs(dots) do
+			go.animate(dot.id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, self.pos + OFFSETS[dot.degrees], go.EASING_LINEAR, MAX_TRAVEL_TIME)
+		end
+
+		-- If not all the colors got used up
+        if not hits or num_hits < COLORS then
+			timer.delay(MAX_TRAVEL_TIME - 0.2, false, function()
+				for _, dot in ipairs(dots) do
+					fade_out(dot.sprite, 0.2)
+				end
+			end)
         end
 
-        local dot_id = factory.create(self.dot_factory, self.pos)
-        local sprite_url = msg.url(nil, dot_id, "sprite")
-        set_color(sprite_url, BLUEGREEN_COLOR)
-
-        go.animate(dot_id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, max_pos, go.EASING_LINEAR, MAX_TRAVEL_TIME)
-
-        if c < COLORS then
-            go.animate(sprite_url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, 0.2, MAX_TRAVEL_TIME - 0.2, function()
-                go.delete(dot_id)
-            end)
-        end
-
-        if aaaaa then
+        if hits then
             local i = 0
-            for group, hit in pairs(aaaaa) do
+            for group, hit in pairs(hits) do
                 local delay = hit.fraction * MAX_TRAVEL_TIME
                 timer.delay(delay, false, function()
-                    remove_color(sprite_url, COLOR_MAP[group])
+					for _, dot in ipairs(dots) do
+						remove_color(dot.sprite, COLOR_MAP[group])
+					end
 
                     if degrees % 2 == 0 then
-                        spawn_splash(dot_id, hit.normal, group)
+                        spawn_splash(dots[1].id, hit.normal, group)
                     end
 
                     i = i + 1
                     if i == COLORS then
-                        go.delete(dot_id)
+						for _, dot in ipairs(dots) do
+							active_dots[dot.id] = nil
+							go.delete(dot.id)
+						end
                     end
                 end)
             end
         end
     end
+
+	timer.delay(MAX_TRAVEL_TIME, false, function()
+		for dot_id, _ in pairs(active_dots) do
+			go.delete(dot_id)
+		end
+	end)
 end
 
 local function start()
