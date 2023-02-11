@@ -1,10 +1,10 @@
 local VECTOR_UP = vmath.vector3(0, 1, 0)
 local function rotate(id, normal)
-    if normal.y == -1 then
-        go.set(id, "euler.z", 180)
-    else
-        go.set_rotation(vmath.quat_from_to(VECTOR_UP, normal), id)
-    end
+	if normal.y == -1 then
+		go.set(id, "euler.z", 180)
+	else
+		go.set_rotation(vmath.quat_from_to(VECTOR_UP, normal), id)
+	end
 end
 
 ---@class RaycastResponse
@@ -18,33 +18,33 @@ end
 ---@param hits RaycastResponse[]
 ---@return RaycastResponse[]
 local function closest_per_group(hits)
-    local unique_hits = {}
-    local found_group = {}
-    for _, hit in ipairs(hits) do
-        local group = hit.group
-        if not found_group[group] then
-            table.insert(unique_hits, hit)
-            found_group[group] = true
-        end
-    end
+	local unique_hits = {}
+	local found_group = {}
+	for _, hit in ipairs(hits) do
+		local group = hit.group
+		if not found_group[group] then
+			table.insert(unique_hits, hit)
+			found_group[group] = true
+		end
+	end
 
-    return unique_hits
+	return unique_hits
 end
 
 ---@param hits RaycastResponse[]
 ---@return { [hash]: RaycastResponse }, number
 local function cpg(hits)
-    local count = 0
-    local filtered_hits = {}
-    for _, hit in ipairs(hits) do
-        local group = hit.group
-        if not filtered_hits[group] then
-            filtered_hits[group] = hit
-            count = count + 1
-        end
-    end
+	local count = 0
+	local filtered_hits = {}
+	for _, hit in ipairs(hits) do
+		local group = hit.group
+		if not filtered_hits[group] then
+			filtered_hits[group] = hit
+			count = count + 1
+		end
+	end
 
-    return filtered_hits, count
+	return filtered_hits, count
 end
 
 local PROP_TINT = hash("tint")
@@ -53,10 +53,10 @@ local PROP_TINT = hash("tint")
 ---@param direction vector3
 ---@param group hash
 local function spawn_splash(dot_id, direction, group)
-    rotate(dot_id, direction)
+	rotate(dot_id, direction)
 
-    local particle_url = msg.url(nil, dot_id, group)
-    particlefx.play(particle_url)
+	local particle_url = msg.url(nil, dot_id, group)
+	particlefx.play(particle_url)
 end
 
 local PROP_ALPHA = hash("tint.w")
@@ -68,22 +68,22 @@ local MAX_TRAVEL_TIME = DOT_RAY.y / PROJECTILE_SPEED
 ---@param url url
 ---@param color vector4
 local function set_color(url, color)
-    go.set(url, PROP_TINT, color)
+	go.set(url, PROP_TINT, color)
 end
 
 ---@param url url
 ---@return vector4
 local function get_color(url)
-    return go.get(url, PROP_TINT)
+	return go.get(url, PROP_TINT)
 end
 
 local function remove_color(url, color)
-    local current = get_color(url)
-    current.x = current.x - color.x/2
-    current.y = current.y - color.y/2
-    current.z = current.z - color.z/2
+	local current = get_color(url)
+	current.x = current.x - color.x/2
+	current.y = current.y - color.y/2
+	current.z = current.z - color.z/2
 
-    set_color(url, current)
+	set_color(url, current)
 end
 
 local function fade_out(url, duration)
@@ -100,8 +100,8 @@ local BLUEGREEN_COLOR = BLUE_COLOR/2 + GREEN_COLOR/2
 
 ---@type { [hash]: vector4 }
 local COLOR_MAP = {
-    [BLUE_GROUP] = BLUE_COLOR,
-    [GREEN_GROUP] = GREEN_COLOR
+	[BLUE_GROUP] = BLUE_COLOR,
+	[GREEN_GROUP] = GREEN_COLOR
 }
 
 local COLORS = 2
@@ -117,7 +117,7 @@ end
 local function pulse_sonar(self)
 	---@type { [url]: bool }
 	local active_dots = {}
-    for degrees = 1,360 do
+	for degrees = 1,360 do
 		local ray = physics.raycast(self.pos, self.pos + OFFSETS[degrees], GROUPS, RAY_ALL)
 		local hits, num_hits
 		if ray then
@@ -145,38 +145,38 @@ local function pulse_sonar(self)
 		end
 
 		-- If not all the colors got used up
-        if not hits or num_hits < COLORS then
+		if not hits or num_hits < COLORS then
 			timer.delay(MAX_TRAVEL_TIME - 0.2, false, function()
 				for _, dot in ipairs(dots) do
 					fade_out(dot.sprite, 0.2)
 				end
 			end)
-        end
+		end
 
-        if hits then
-            local i = 0
-            for group, hit in pairs(hits) do
-                local delay = hit.fraction * MAX_TRAVEL_TIME
-                timer.delay(delay, false, function()
+		if hits then
+			local i = 0
+			for group, hit in pairs(hits) do
+				local delay = hit.fraction * MAX_TRAVEL_TIME
+				timer.delay(delay, false, function()
 					for _, dot in ipairs(dots) do
 						remove_color(dot.sprite, COLOR_MAP[group])
 					end
 
-                    if degrees % 2 == 0 then
-                        spawn_splash(dots[1].id, hit.normal, group)
-                    end
+					if degrees % 2 == 0 then
+						spawn_splash(dots[1].id, hit.normal, group)
+					end
 
-                    i = i + 1
-                    if i == COLORS then
+					i = i + 1
+					if i == COLORS then
 						for _, dot in ipairs(dots) do
 							active_dots[dot.id] = nil
 							go.delete(dot.id)
 						end
-                    end
-                end)
-            end
-        end
-    end
+					end
+				end)
+			end
+		end
+	end
 
 	timer.delay(MAX_TRAVEL_TIME, false, function()
 		for dot_id, _ in pairs(active_dots) do
@@ -186,44 +186,44 @@ local function pulse_sonar(self)
 end
 
 local function start()
-    timer.delay(1.5, true, pulse_sonar)
+	timer.delay(1.5, true, pulse_sonar)
 end
 
 ---@param self Self
 ---@param x number
 local function move_x(self, x)
-    local new_pos = self.pos + vmath.vector3(x, 0, 0)
+	local new_pos = self.pos + vmath.vector3(x, 0, 0)
 
-    local ray = physics.raycast(self.pos, new_pos, self.groups)
-    if not ray then
-        self.pos = new_pos
-    else
-        self.velocity.x = self.velocity.x * -0.5
-    end
+	local ray = physics.raycast(self.pos, new_pos, self.groups)
+	if not ray then
+		self.pos = new_pos
+	else
+		self.velocity.x = self.velocity.x * -0.5
+	end
 end
 
 ---@param self Self
 ---@param y number
 local function move_y(self, y)
-    local new_pos = self.pos + vmath.vector3(0, y, 0)
+	local new_pos = self.pos + vmath.vector3(0, y, 0)
 
-    local ray = physics.raycast(self.pos, new_pos, self.groups)
-    if not ray then
-        self.pos = new_pos
-    else
-        self.velocity.y = self.velocity.y * -0.5
-    end
+	local ray = physics.raycast(self.pos, new_pos, self.groups)
+	if not ray then
+		self.pos = new_pos
+	else
+		self.velocity.y = self.velocity.y * -0.5
+	end
 end
 
 local function move(self, offset)
-    if vmath.length_sqr(offset) == 0 then return end
+	if vmath.length_sqr(offset) == 0 then return end
 
-    if math.abs(offset.x) > 0.001 then
-        move_x(self, offset.x)
-    end
-    if math.abs(offset.y) > 0.001 then
-        move_y(self, offset.y)
-    end
+	if math.abs(offset.x) > 0.001 then
+		move_x(self, offset.x)
+	end
+	if math.abs(offset.y) > 0.001 then
+		move_y(self, offset.y)
+	end
 end
 
 ---@class Self
@@ -236,71 +236,71 @@ end
 
 ---@param self Self
 function init(self)
-    msg.post(".", "acquire_input_focus")
-    MAP_X, MAP_Y, MAP_W, MAP_H = tilemap.get_bounds("/map#map")
-    self.pos = vmath.vector3(480, 320, 1)
-    self.input = vmath.vector3()
-    self.velocity = vmath.vector3()
-    self.color = vmath.vector4(0, 0.2, 0.8, 1)
-    self.dot_factory = msg.url("#factory")
-    self.groups = { BLUE_GROUP }
+	msg.post(".", "acquire_input_focus")
+	MAP_X, MAP_Y, MAP_W, MAP_H = tilemap.get_bounds("/map#map")
+	self.pos = vmath.vector3(480, 320, 1)
+	self.input = vmath.vector3()
+	self.velocity = vmath.vector3()
+	self.color = vmath.vector4(0, 0.2, 0.8, 1)
+	self.dot_factory = msg.url("#factory")
+	self.groups = { BLUE_GROUP }
 
-    go.set("go2#sprite", "tint", self.color * 1.5)
-    particlefx.play("go2#trail")
-    particlefx.set_constant("go2#trail", "emitter", "tint", self.color)
+	go.set("go2#sprite", "tint", self.color * 1.5)
+	particlefx.play("go2#trail")
+	particlefx.set_constant("go2#trail", "emitter", "tint", self.color)
 
-    start()
+	start()
 end
 
 function final(self)
-    -- Add finalization code here
-    -- Learn more: https://defold.com/manuals/script/
-    -- Remove this function if not needed
+	-- Add finalization code here
+	-- Learn more: https://defold.com/manuals/script/
+	-- Remove this function if not needed
 end
 
 local ACCELERATION = 500
 function update(self, dt)
-    if vmath.length_sqr(self.input) > 0 then
-        self.velocity = self.velocity + vmath.normalize(self.input) * ACCELERATION * dt
-    end
-    self.velocity = self.velocity * 0.99
-    move(self, self.velocity * dt)
-    go.set_position(self.pos, "go2")
-    self.input.x, self.input.y = 0, 0
+	if vmath.length_sqr(self.input) > 0 then
+		self.velocity = self.velocity + vmath.normalize(self.input) * ACCELERATION * dt
+	end
+	self.velocity = self.velocity * 0.99
+	move(self, self.velocity * dt)
+	go.set_position(self.pos, "go2")
+	self.input.x, self.input.y = 0, 0
 end
 
 function fixed_update(self, dt)
-    -- Add update code here
-    -- Learn more: https://defold.com/manuals/script/
-    -- Remove this function if not needed
+	-- Add update code here
+	-- Learn more: https://defold.com/manuals/script/
+	-- Remove this function if not needed
 end
 
 function on_message(self, message_id, message, sender)
-    -- Add message-handling code here
-    -- Learn more: https://defold.com/manuals/message-passing/
-    -- Remove this function if not needed
+	-- Add message-handling code here
+	-- Learn more: https://defold.com/manuals/message-passing/
+	-- Remove this function if not needed
 end
 
 function on_input(self, action_id, action)
-    if action_id == hash("up") then
-        self.input.y = 1
-    elseif action_id == hash("down") then
-        self.input.y = -1
-    elseif action_id == hash("left") then
-        self.input.x = -1
-    elseif action_id == hash("right") then
-        self.input.x = 1
-    end
+	if action_id == hash("up") then
+		self.input.y = 1
+	elseif action_id == hash("down") then
+		self.input.y = -1
+	elseif action_id == hash("left") then
+		self.input.x = -1
+	elseif action_id == hash("right") then
+		self.input.x = 1
+	end
 
-    if action.pressed then
-        if action_id == hash("p") then
-            msg.post("@system:", "toggle_profile")
-        end
-    end
+	if action.pressed then
+		if action_id == hash("p") then
+			msg.post("@system:", "toggle_profile")
+		end
+	end
 end
 
 function on_reload(self)
-    -- Add reload-handling code here
-    -- Learn more: https://defold.com/manuals/hot-reload/
-    -- Remove this function if not needed
+	-- Add reload-handling code here
+	-- Learn more: https://defold.com/manuals/hot-reload/
+	-- Remove this function if not needed
 end
