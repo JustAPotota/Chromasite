@@ -115,6 +115,8 @@ end
 
 ---@param self Self
 local function pulse_sonar(self)
+	self.sonar_ready = false
+
 	---@type { [url]: bool }
 	local active_dots = {}
 	for degrees = 1,360 do
@@ -182,6 +184,7 @@ local function pulse_sonar(self)
 		for dot_id, _ in pairs(active_dots) do
 			go.delete(dot_id)
 		end
+		self.sonar_ready = true
 	end)
 end
 
@@ -233,6 +236,8 @@ end
 ---@field color vector4
 ---@field dot_factory url
 ---@field groups hash[]
+---@field sonar_ready bool
+---@field sonar_timer userdata
 
 ---@param self Self
 function init(self)
@@ -249,7 +254,8 @@ function init(self)
 	particlefx.play("go2#trail")
 	particlefx.set_constant("go2#trail", "emitter", "tint", self.color)
 
-	start()
+	self.sonar_ready = true
+	self.sonar_timer = timer.delay(1.5, true, pulse_sonar)
 end
 
 function final(self)
@@ -287,6 +293,7 @@ function on_message(self, message_id, message, sender)
 	-- Remove this function if not needed
 end
 
+---@param self Self
 function on_input(self, action_id, action)
 	if action_id == hash("up") then
 		self.input.y = 1
@@ -296,6 +303,15 @@ function on_input(self, action_id, action)
 		self.input.x = -1
 	elseif action_id == hash("right") then
 		self.input.x = 1
+	elseif action_id == hash("space") then
+		if action.pressed then
+			timer.cancel(self.sonar_timer)
+		elseif action.released then
+			if self.sonar_ready then
+				pulse_sonar(self)
+			end
+			self.sonar_timer = timer.delay(1.5, true, pulse_sonar)
+		end
 	end
 
 	if action.pressed then
