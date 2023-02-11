@@ -259,20 +259,26 @@ function final(self)
 end
 
 local ACCELERATION = 500
-function update(self, dt)
+local function apply_input(self, dt)
 	if vmath.length_sqr(self.input) > 0 then
 		self.velocity = self.velocity + vmath.normalize(self.input) * ACCELERATION * dt
 	end
+end
+
+local function apply_friction(self)
 	self.velocity = self.velocity * 0.99
+end
+
+function update(self, dt)
+	apply_input(self, dt)
 	move(self, self.velocity * dt)
 	go.set_position(self.pos, "go2")
 	self.input.x, self.input.y = 0, 0
 end
 
 function fixed_update(self, dt)
-	-- Add update code here
-	-- Learn more: https://defold.com/manuals/script/
-	-- Remove this function if not needed
+	-- Putting this here because math is hard
+	apply_friction(self)
 end
 
 function on_message(self, message_id, message, sender)
