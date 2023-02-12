@@ -1,3 +1,6 @@
+local PLAYBACK_ONCE_FORWARD = go.PLAYBACK_ONCE_FORWARD
+local EASING_LINEAR = go.EASING_LINEAR
+local EASING_OUTSINE = go.EASING_OUTSINE
 local VECTOR_UP = vmath.vector3(0, 1, 0)
 local function rotate(id, normal)
 	if normal.y == -1 then
@@ -14,22 +17,6 @@ end
 ---@field id hash
 ---@field group hash
 ---@field request_id number
-
----@param hits RaycastResponse[]
----@return RaycastResponse[]
-local function closest_per_group(hits)
-	local unique_hits = {}
-	local found_group = {}
-	for _, hit in ipairs(hits) do
-		local group = hit.group
-		if not found_group[group] then
-			table.insert(unique_hits, hit)
-			found_group[group] = true
-		end
-	end
-
-	return unique_hits
-end
 
 ---@param hits RaycastResponse[]
 ---@return { [hash]: RaycastResponse }, number
@@ -87,7 +74,7 @@ local function remove_color(url, color)
 end
 
 local function fade_out(url, duration)
-	go.animate(url, PROP_ALPHA, go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTSINE, duration)
+	go.animate(url, PROP_ALPHA, PLAYBACK_ONCE_FORWARD, 0, EASING_OUTSINE, duration)
 end
 
 local BLUE_GROUP = hash("blue")
@@ -152,7 +139,7 @@ local function pulse_sonar(self)
 		end
 
 		for _, dot in ipairs(dots) do
-			go.animate(dot.id, PROP_POSITION, go.PLAYBACK_ONCE_FORWARD, self.pos + OFFSETS[dot.degrees], go.EASING_LINEAR, MAX_TRAVEL_TIME)
+			go.animate(dot.id, PROP_POSITION, PLAYBACK_ONCE_FORWARD, self.pos + OFFSETS[dot.degrees], EASING_LINEAR, MAX_TRAVEL_TIME)
 		end
 
 		-- If not all the colors got used up
