@@ -104,6 +104,43 @@ for degrees = 0,361,0.25 do
 	OFFSETS[degrees] = vmath.rotate(vmath.quat_rotation_z(radians), DOT_RAY)
 end
 
+---@type { [number]: quat }
+local QUAT_CACHE = {}
+
+---@param degrees number
+---@return quat
+local function deg_to_quat(degrees)
+	return QUAT_CACHE[degrees] or vmath.quat_rotation_z(math.rad(degrees))
+end
+
+local EMITTER_IDS = {"emitter", "emitter1", "emitter2", "emitter3"}
+---@param degrees number
+---@param color vector4
+local function spawn_dot_batch(degrees, color)
+	local main = factory.create("#factory1")
+	local particle = msg.url(nil, main, "particle")
+
+	go.set_rotation(deg_to_quat(degrees), main)
+	particlefx.play(particle, function(_, _, _, state)
+		if state == particlefx.EMITTER_STATE_SPAWNING then
+			go.delete(main)
+		end
+	end)
+	for _, emitter in ipairs(EMITTER_IDS) do
+		particlefx.set_constant(particle, emitter, "tint", color)
+	end
+
+	-- for degrees = base_degrees, base_degrees+10.75, 0.25 do
+	-- 	local quat = deg_to_quat(degrees)
+	-- 	go.set_rotation(quat, main)
+	-- 	particlefx.play(particle)
+	-- end
+
+	-- start_timer(10/3, false, function()
+	-- 	go.delete(main)
+	-- end)
+end
+
 ---@param self Self
 local function pulse_sonar(self)
 	local color_count = #self.groups
@@ -119,26 +156,27 @@ local function pulse_sonar(self)
 	---@type { [url]: bool }
 	local active_dots = {}
 	for degrees = 1,360 do
-		local ray = physics.raycast(self.pos, self.pos + OFFSETS[degrees], self.groups, RAY_ALL)
+		spawn_dot_batch(degrees, self.color)
+		--local ray = physics.raycast(self.pos, self.pos + OFFSETS[degrees], self.groups, RAY_ALL)
 		local hits, num_hits
 		if ray then
-			hits, num_hits = cpg(ray)
+			--hits, num_hits = cpg(ray)
 		end
 
 		local dots = {}
 
 		-- degrees = X.75, X.00, X.25, X.50
 		for degrees = degrees-0.25, degrees+0.50, 0.25 do
-			local dot = factory.create(self.dot_factory, self.pos)
-			local sprite = msg.url(nil, dot, "sprite")
-			set_color(sprite, initial_color)
-			active_dots[dot] = true
+			-- local dot = factory.create(self.dot_factory, self.pos)
+			-- local sprite = msg.url(nil, dot, "sprite")
+			-- set_color(sprite, initial_color)
+			-- active_dots[dot] = true
 
-			table.insert(dots, {
-				id = dot,
-				sprite = sprite,
-				degrees = degrees
-			})
+			-- table.insert(dots, {
+			-- 	id = dot,
+			-- 	sprite = sprite,
+			-- 	degrees = degrees
+			-- })
 		end
 
 		for _, dot in ipairs(dots) do

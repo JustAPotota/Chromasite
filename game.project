@@ -25,7 +25,7 @@ max_count = 5000
 max_instances = 5000
 
 [particle_fx]
-max_emitter_count = 4096
+max_emitter_count = 5000
 max_count = 13288
 max_particle_count = 8192
 
