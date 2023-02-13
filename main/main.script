@@ -1,6 +1,9 @@
 local PLAYBACK_ONCE_FORWARD = go.PLAYBACK_ONCE_FORWARD
 local EASING_LINEAR = go.EASING_LINEAR
 local EASING_OUTSINE = go.EASING_OUTSINE
+local start_timer = timer.delay
+local cancel_timer = timer.cancel
+
 local VECTOR_UP = vmath.vector3(0, 1, 0)
 local function rotate(id, normal)
 	if normal.y == -1 then
@@ -144,7 +147,7 @@ local function pulse_sonar(self)
 
 		-- If not all the colors got used up
 		if not hits or num_hits < color_count then
-			timer.delay(MAX_TRAVEL_TIME - 0.2, false, function()
+			start_timer(MAX_TRAVEL_TIME - 0.2, false, function()
 				for _, dot in ipairs(dots) do
 					fade_out(dot.sprite, 0.2)
 				end
@@ -155,7 +158,7 @@ local function pulse_sonar(self)
 			local i = 0
 			for group, hit in pairs(hits) do
 				local delay = hit.fraction * MAX_TRAVEL_TIME
-				timer.delay(delay, false, function()
+				start_timer(delay, false, function()
 					for _, dot in ipairs(dots) do
 						remove_color(dot.sprite, COLOR_MAP[group])
 					end
@@ -254,7 +257,7 @@ function init(self)
 	self.input = vmath.vector3()
 	self.velocity = vmath.vector3()
 	self.dot_factory = msg.url("#factory")
-	self.groups = {GREEN_GROUP}
+	self.groups = {}
 
 	self.color = vmath.vector4()
 	update_color(self)
