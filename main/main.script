@@ -5,11 +5,14 @@ local start_timer = timer.delay
 local cancel_timer = timer.cancel
 
 local VECTOR_UP = vmath.vector3(0, 1, 0)
-local function rotate(id, normal)
+local QUAT_UPSIDE_DOWN = vmath.quat_rotation_z(math.rad(180))
+---@param normal vector3
+---@return quat
+local function get_rotation(normal)
 	if normal.y == -1 then
-		go.set(id, "euler.z", 180)
+		return QUAT_UPSIDE_DOWN
 	else
-		go.set_rotation(vmath.quat_from_to(VECTOR_UP, normal), id)
+		return vmath.quat_from_to(VECTOR_UP, normal)
 	end
 end
 
@@ -37,20 +40,30 @@ local function cpg(hits)
 	return filtered_hits, count
 end
 
+---@param id hash
+---@return fun(self: Self, id: hash, emitter: hash, event: number)
+local function delete_particle(id)
+	return function(_, _, _, event)
+		if event == particlefx.EMITTER_STATE_SPAWNING then
+			go.delete(id)
+		end
+	end
+end
+
 local PROP_TINT = hash("tint")
 
----@param dot_id hash
----@param direction vector3
----@param group hash
-local function spawn_splash(dot_id, direction, group)
-	rotate(dot_id, direction)
+---@param normal vector3
+---@param position vector3
+---@param color vector4
+local function spawn_splash2(normal, position, color)
+	local splash = factory.create("#splash", position, get_rotation(normal))
+	local particle = msg.url(nil, splash, "particle")
 
-	local particle_url = msg.url(nil, dot_id, group)
-	particlefx.play(particle_url)
+	particlefx.play(particle, delete_particle(splash))
+	particlefx.set_constant(particle, "emitter", "tint", color)
 end
 
 local PROP_ALPHA = hash("tint.w")
-local PROP_POSITION = hash("position")
 local PROJECTILE_SPEED = 150
 local DOT_RAY = vmath.vector3(0, 500, 0)
 local MAX_TRAVEL_TIME = DOT_RAY.y / PROJECTILE_SPEED
@@ -69,11 +82,23 @@ end
 
 local function remove_color(url, color)
 	local current = get_color(url)
-	current.x = current.x - color.x/2
-	current.y = current.y - color.y/2
-	current.z = current.z - color.z/2
+	current.x = current.x - color.x / 2
+	current.y = current.y - color.y / 2
+	current.z = current.z - color.z / 2
 
 	set_color(url, current)
+end
+
+---@param a vector4
+---@param b vector4
+---@param n number
+---@return vector4
+local function subtract_color(a, b, n)
+	local color = vmath.vector4(a)
+	color.x = a.x - b.x / n
+	color.y = a.y - b.y / n
+	color.z = a.z - b.z / n
+	return color
 end
 
 local function fade_out(url, duration)
@@ -86,7 +111,7 @@ local GROUPS = { BLUE_GROUP, GREEN_GROUP }
 local RAY_ALL = { all = true }
 local BLUE_COLOR = vmath.vector4(0.00, 0.20, 0.80, 1)
 local GREEN_COLOR = vmath.vector4(0.12, 0.90, 0.50, 1)
-local BLUEGREEN_COLOR = BLUE_COLOR/2 + GREEN_COLOR/2
+local BLUEGREEN_COLOR = BLUE_COLOR / 2 + GREEN_COLOR / 2
 local EMPTY_COLOR = vmath.vector4(0.05, 0.05, 0.05, 1)
 
 ---@type { [hash]: vector4 }
@@ -99,7 +124,7 @@ local COLORS = 2
 
 ---@type { [number]: vector3}
 local OFFSETS = {}
-for degrees = 0,361,0.25 do
+for degrees = 0, 361, 0.25 do
 	local radians = math.rad(degrees)
 	OFFSETS[degrees] = vmath.rotate(vmath.quat_rotation_z(radians), DOT_RAY)
 end
@@ -113,32 +138,29 @@ local function deg_to_quat(degrees)
 	return QUAT_CACHE[degrees] or vmath.quat_rotation_z(math.rad(degrees))
 end
 
-local EMITTER_IDS = {"emitter", "emitter1", "emitter2", "emitter3"}
+local EMITTER_IDS = { "emitter", "emitter1", "emitter2", "emitter3" }
+---@param particle_url url
+---@param color vector4
+local function set_batch_color(particle_url, color)
+	for _, emitter in ipairs(EMITTER_IDS) do
+		particlefx.set_constant(particle_url, emitter, "tint", color)
+	end
+end
+
+---@param position vector3
 ---@param degrees number
 ---@param color vector4
-local function spawn_dot_batch(degrees, color)
-	local main = factory.create("#factory1")
+---@param delete_immediately bool
+---@return url
+local function spawn_dot_batch(position, degrees, color, delete_immediately)
+	local main = factory.create("#factory1", position)
 	local particle = msg.url(nil, main, "particle")
 
 	go.set_rotation(deg_to_quat(degrees), main)
-	particlefx.play(particle, function(_, _, _, state)
-		if state == particlefx.EMITTER_STATE_SPAWNING then
-			go.delete(main)
-		end
-	end)
-	for _, emitter in ipairs(EMITTER_IDS) do
-		particlefx.set_constant(particle, emitter, "tint", color)
-	end
+	particlefx.play(particle, delete_immediately and delete_particle(main) or nil)
+	set_batch_color(particle, color)
 
-	-- for degrees = base_degrees, base_degrees+10.75, 0.25 do
-	-- 	local quat = deg_to_quat(degrees)
-	-- 	go.set_rotation(quat, main)
-	-- 	particlefx.play(particle)
-	-- end
-
-	-- start_timer(10/3, false, function()
-	-- 	go.delete(main)
-	-- end)
+	return particle
 end
 
 ---@param self Self
@@ -150,67 +172,30 @@ local function pulse_sonar(self)
 
 	local initial_color = vmath.vector4()
 	for _, group in ipairs(self.groups) do
-		initial_color = initial_color + COLOR_MAP[group]/color_count
+		initial_color = initial_color + COLOR_MAP[group] / color_count
 	end
 
 	---@type { [url]: bool }
 	local active_dots = {}
-	for degrees = 1,360 do
-		spawn_dot_batch(degrees, self.color)
-		--local ray = physics.raycast(self.pos, self.pos + OFFSETS[degrees], self.groups, RAY_ALL)
-		local hits, num_hits
+	for degrees = 1, 360 do
+		local ray --physics.raycast(self.pos, self.pos + OFFSETS[degrees], self.groups, RAY_ALL)
+		local particle_url = spawn_dot_batch(self.pos, degrees, self.color, ray == nil)
 		if ray then
-			--hits, num_hits = cpg(ray)
-		end
+			local current_color = self.color
+			local hits, num_hits = cpg(ray)
 
-		local dots = {}
-
-		-- degrees = X.75, X.00, X.25, X.50
-		for degrees = degrees-0.25, degrees+0.50, 0.25 do
-			-- local dot = factory.create(self.dot_factory, self.pos)
-			-- local sprite = msg.url(nil, dot, "sprite")
-			-- set_color(sprite, initial_color)
-			-- active_dots[dot] = true
-
-			-- table.insert(dots, {
-			-- 	id = dot,
-			-- 	sprite = sprite,
-			-- 	degrees = degrees
-			-- })
-		end
-
-		for _, dot in ipairs(dots) do
-			go.animate(dot.id, PROP_POSITION, PLAYBACK_ONCE_FORWARD, self.pos + OFFSETS[dot.degrees], EASING_LINEAR, MAX_TRAVEL_TIME)
-		end
-
-		-- If not all the colors got used up
-		if not hits or num_hits < color_count then
-			start_timer(MAX_TRAVEL_TIME - 0.2, false, function()
-				for _, dot in ipairs(dots) do
-					fade_out(dot.sprite, 0.2)
-				end
-			end)
-		end
-
-		if hits then
 			local i = 0
-			for group, hit in pairs(hits) do
-				local delay = hit.fraction * MAX_TRAVEL_TIME
-				start_timer(delay, false, function()
-					for _, dot in ipairs(dots) do
-						remove_color(dot.sprite, COLOR_MAP[group])
-					end
+			for group, ray in pairs(hits) do
+				timer.delay(MAX_TRAVEL_TIME * ray.fraction, false, function()
+					local color_hit = COLOR_MAP[group]
+					current_color = subtract_color(current_color, color_hit, color_count)
+					set_batch_color(particle_url, current_color)
 
-					if degrees % 2 == 0 then
-						spawn_splash(dots[1].id, hit.normal, group)
-					end
+					spawn_splash2(ray.normal, ray.position, color_hit)
 
 					i = i + 1
-					if i == color_count then
-						for _, dot in ipairs(dots) do
-							active_dots[dot.id] = nil
-							go.delete(dot.id)
-						end
+					if i == color_count or i == num_hits then
+						go.delete(particle_url)
 					end
 				end)
 			end
@@ -218,9 +203,6 @@ local function pulse_sonar(self)
 	end
 
 	timer.delay(MAX_TRAVEL_TIME, false, function()
-		for dot_id, _ in pairs(active_dots) do
-			go.delete(dot_id)
-		end
 		self.sonar_ready = true
 	end)
 end
@@ -269,7 +251,7 @@ local function update_color(self)
 		self.color = EMPTY_COLOR
 	else
 		for _, group in ipairs(self.groups) do
-			self.color = self.color + COLOR_MAP[group]/#self.groups
+			self.color = self.color + COLOR_MAP[group] / #self.groups
 		end
 	end
 	set_color(msg.url("go2#sprite"), self.color * 1.5)
@@ -284,7 +266,7 @@ end
 ---@field dot_factory url
 ---@field groups hash[]
 ---@field sonar_ready bool
----@field sonar_timer userdata
+---@field sonar_timer hash
 
 ---@param self Self
 function init(self)
