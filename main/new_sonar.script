@@ -1,0 +1,36 @@
+---@class Sonar
+---@field seconds_alive number
+---@field model_url url
+
+---@type Sonar[]
+local sonars = {}
+
+function init(self)
+
+end
+
+function update(self, dt)
+	for i, sonar in ipairs(sonars) do
+		sonar.seconds_alive = sonar.seconds_alive + dt
+		if sonar.seconds_alive >= 4 then
+			go.delete(sonar.model_url)
+			table.remove(sonars, i)
+		else
+			go.set(sonar.model_url, "params.y", sonar.seconds_alive)
+		end
+	end
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("spawn_sonar") then
+		local object_id = factory.create("#factory", message.position)
+		local model_url = msg.url(nil, object_id, "model")
+
+		go.set("model_url", "params.x", message.color)
+
+		table.insert(sonars, {
+			seconds_alive = 0,
+			model_url = model_url
+		})
+	end
+end

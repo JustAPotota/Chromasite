@@ -1,4 +1,5 @@
 name: "sonar"
+tags: "tile"
 vertex_program: "/builtins/materials/sprite.vp"
 fragment_program: "/render/sonar.fp"
 vertex_space: VERTEX_SPACE_WORLD

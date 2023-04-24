@@ -1,3 +1,5 @@
+local sonar = require("main.sonar")
+
 local PLAYBACK_ONCE_FORWARD = go.PLAYBACK_ONCE_FORWARD
 local EASING_LINEAR = go.EASING_LINEAR
 local EASING_OUTSINE = go.EASING_OUTSINE
@@ -109,8 +111,10 @@ local BLUE_GROUP = hash("blue")
 local GREEN_GROUP = hash("green")
 local GROUPS = { BLUE_GROUP, GREEN_GROUP }
 local RAY_ALL = { all = true }
-local BLUE_COLOR = vmath.vector4(0.00, 0.20, 0.80, 1)
-local GREEN_COLOR = vmath.vector4(0.12, 0.90, 0.50, 1)
+--local BLUE_COLOR = vmath.vector4(0.00, 0.20, 0.80, 1)
+--local GREEN_COLOR = vmath.vector4(0.12, 0.90, 0.50, 1)
+local GREEN_COLOR = vmath.vector4(0, 1, 0, 1)
+local BLUE_COLOR = vmath.vector4(0, 0, 1, 1)
 local BLUEGREEN_COLOR = BLUE_COLOR / 2 + GREEN_COLOR / 2
 local EMPTY_COLOR = vmath.vector4(0.05, 0.05, 0.05, 1)
 
@@ -121,13 +125,6 @@ local COLOR_MAP = {
 }
 
 local COLORS = 2
-
----@type { [number]: vector3}
-local OFFSETS = {}
-for degrees = 0, 361, 0.25 do
-	local radians = math.rad(degrees)
-	OFFSETS[degrees] = vmath.rotate(vmath.quat_rotation_z(radians), DOT_RAY)
-end
 
 ---@type { [number]: quat }
 local QUAT_CACHE = {}
@@ -163,6 +160,19 @@ local function spawn_dot_batch(position, degrees, color, delete_immediately)
 	return particle
 end
 
+---@type { [number]: vector3}
+local OFFSETS = {}
+local ANGLES = {}
+for angle = 1, 256 do
+	local degrees = 1 + ((360 - 1) / (256 - 1)) * (angle - 1)
+	local radians = math.rad(degrees + 90)
+	OFFSETS[angle] = vmath.rotate(vmath.quat_rotation_z(radians), DOT_RAY)
+	ANGLES[angle] = degrees
+end
+local function shader_angle_to_degrees(angle)
+	return ANGLES[angle]
+end
+
 ---@param self Self
 local function pulse_sonar(self)
 	local color_count = #self.groups
@@ -175,32 +185,43 @@ local function pulse_sonar(self)
 		initial_color = initial_color + COLOR_MAP[group] / color_count
 	end
 
-	---@type { [url]: bool }
-	local active_dots = {}
-	for degrees = 1, 360 do
-		local ray --physics.raycast(self.pos, self.pos + OFFSETS[degrees], self.groups, RAY_ALL)
-		local particle_url = spawn_dot_batch(self.pos, degrees, self.color, ray == nil)
+	---@type vector4[]
+	local seconds_left = {}
+	for angle = 1, 256 do
+		local ray = physics.raycast(self.pos, self.pos + OFFSETS[angle], self.groups, RAY_ALL)
+		--local particle_url = spawn_dot_batch(self.pos, degrees, self.color, ray == nil)
 		if ray then
 			local current_color = self.color
 			local hits, num_hits = cpg(ray)
 
-			local i = 0
+			local seconds = vmath.vector4(4)
 			for group, ray in pairs(hits) do
-				timer.delay(MAX_TRAVEL_TIME * ray.fraction, false, function()
-					local color_hit = COLOR_MAP[group]
-					current_color = subtract_color(current_color, color_hit, color_count)
-					set_batch_color(particle_url, current_color)
+				if group == GREEN_GROUP then
+					seconds.y = MAX_TRAVEL_TIME * ray.fraction
+				elseif group == BLUE_GROUP then
+					seconds.z = MAX_TRAVEL_TIME * ray.fraction
+				end
+				-- timer.delay(MAX_TRAVEL_TIME * ray.fraction, false, function()
+				-- 	local color_hit = COLOR_MAP[group]
+				-- 	current_color = subtract_color(current_color, color_hit, color_count)
+				-- 	set_batch_color(particle_url, current_color)
 
-					spawn_splash2(ray.normal, ray.position, color_hit)
+				-- 	spawn_splash2(ray.normal, ray.position, color_hit)
 
-					i = i + 1
-					if i == color_count or i == num_hits then
-						go.delete(particle_url)
-					end
-				end)
+				-- 	i = i + 1
+				-- 	if i == color_count or i == num_hits then
+				-- 		go.delete(particle_url)
+				-- 	end
+				-- end)
 			end
+
+			seconds_left[angle] = seconds
+			--table.insert(seconds_left, seconds)
+		else
+			seconds_left[angle] = vmath.vector4(4)
 		end
 	end
+	sonar.new_sonar(self.pos, self.color, seconds_left)
 
 	timer.delay(MAX_TRAVEL_TIME, false, function()
 		self.sonar_ready = true
@@ -308,6 +329,7 @@ function update(self, dt)
 	move(self, self.velocity * dt)
 	go.set_position(self.pos, "go2")
 	self.input.x, self.input.y = 0, 0
+	sonar.update(dt)
 end
 
 function fixed_update(self, dt)
