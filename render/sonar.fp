@@ -32,9 +32,14 @@ float map(float value, float min1, float max1, float min2, float max2) {
 
 vec3 get_seconds_left() {
 	float angle = atan(var_texcoord0.y - 0.5, var_texcoord0.x - 0.5);
-	float mapped_angle = floor(map(angle, -PI, PI, 0.0, 256.0));
+	float mapped_angle = map(angle, -PI, PI, 0.0, 256.0);
+	float upper_index = mod(ceil(mapped_angle), 256.0);
+	float lower_index = mod(floor(mapped_angle), 256.0);
 
-	return seconds_left[int(mapped_angle)].rgb;
+	vec3 upper = seconds_left[int(upper_index)].rgb;
+	vec3 lower = seconds_left[int(lower_index)].rgb;
+
+	return mix(lower, upper, fract(mapped_angle));
 }
 
 #define SPEED 0.15

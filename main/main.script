@@ -162,15 +162,10 @@ end
 
 ---@type { [number]: vector3}
 local OFFSETS = {}
-local ANGLES = {}
 for angle = 1, 256 do
 	local degrees = 1 + ((360 - 1) / (256 - 1)) * (angle - 1)
 	local radians = math.rad(degrees + 90)
 	OFFSETS[angle] = vmath.rotate(vmath.quat_rotation_z(radians), DOT_RAY)
-	ANGLES[angle] = degrees
-end
-local function shader_angle_to_degrees(angle)
-	return ANGLES[angle]
 end
 
 ---@param self Self
@@ -189,37 +184,21 @@ local function pulse_sonar(self)
 	local seconds_left = {}
 	for angle = 1, 256 do
 		local ray = physics.raycast(self.pos, self.pos + OFFSETS[angle], self.groups, RAY_ALL)
-		--local particle_url = spawn_dot_batch(self.pos, degrees, self.color, ray == nil)
+		local seconds = vmath.vector4(4)
 		if ray then
 			local current_color = self.color
 			local hits, num_hits = cpg(ray)
 
-			local seconds = vmath.vector4(4)
 			for group, ray in pairs(hits) do
 				if group == GREEN_GROUP then
 					seconds.y = MAX_TRAVEL_TIME * ray.fraction
 				elseif group == BLUE_GROUP then
 					seconds.z = MAX_TRAVEL_TIME * ray.fraction
 				end
-				-- timer.delay(MAX_TRAVEL_TIME * ray.fraction, false, function()
-				-- 	local color_hit = COLOR_MAP[group]
-				-- 	current_color = subtract_color(current_color, color_hit, color_count)
-				-- 	set_batch_color(particle_url, current_color)
-
-				-- 	spawn_splash2(ray.normal, ray.position, color_hit)
-
-				-- 	i = i + 1
-				-- 	if i == color_count or i == num_hits then
-				-- 		go.delete(particle_url)
-				-- 	end
-				-- end)
 			end
-
-			seconds_left[angle] = seconds
-			--table.insert(seconds_left, seconds)
-		else
-			seconds_left[angle] = vmath.vector4(4)
 		end
+
+		seconds_left[angle] = seconds
 	end
 	sonar.new_sonar(self.pos, self.color, seconds_left)
 
