@@ -9,23 +9,6 @@ uniform lowp vec4 seconds_left[256];
 // w = current_time
 uniform lowp vec4 params;
 
-vec4 color_from_bits(int bits) {
-	vec4 color = vec4(0.0);
-	if (bits >= 4) {
-		color.r = 1.0;
-		bits -= 4;
-	}
-	if (bits >= 2) {
-		color.g = 1.0;
-		bits -= 2;
-	}
-	if (bits >= 1) {
-		color.b = 1.0;
-	}
-	color.a = 1.0;
-	return color;
-}
-
 float map(float value, float min1, float max1, float min2, float max2) {
 	return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
 }
@@ -43,9 +26,12 @@ vec3 get_seconds_left() {
 }
 
 #define SPEED 0.15
+#define RED vec3(0.82, 0.16, 0.16)
+#define GREEN vec3(0.12, 0.90, 0.50)
+#define BLUE vec3(0.00, 0.20, 0.80)
 void main() {
 	// Read data from params
-	vec3 pulse_color = params.xyz;
+	vec3 initial_color = params.rgb;
 	float seconds_alive = params.w;
 
 	// Parse them into something a bit more useful
@@ -59,9 +45,22 @@ void main() {
 	alpha *= 1.0 - smoothstep(3.0, 3.33333, seconds_alive);
 
 	vec3 seconds_left = get_seconds_left();
-	pulse_color.r *= step(seconds_alive, seconds_left.r);
-	pulse_color.g *= step(seconds_alive, seconds_left.g);
-	pulse_color.b *= step(seconds_alive, seconds_left.b);
 
-	gl_FragColor = vec4(pulse_color, alpha);
+	vec3 not_collided_yet = vec3(
+		step(seconds_alive, seconds_left.r),
+		step(seconds_alive, seconds_left.g),
+		step(seconds_alive, seconds_left.b)
+	);
+	vec3 is_active = vec3(
+		ceil(initial_color.r)*not_collided_yet.r,
+		ceil(initial_color.g)*not_collided_yet.g,
+		ceil(initial_color.b)*not_collided_yet.b
+	);
+	float color_count = is_active.r + is_active.g + is_active.b;
+	vec3 pulse_color = vec3(0.0);
+	pulse_color += RED   * is_active.r / color_count;
+	pulse_color += GREEN * is_active.g / color_count;
+	pulse_color += BLUE  * is_active.b / color_count;
+
+	gl_FragColor = vec4(pulse_color, alpha * step(0.1, color_count));
 }

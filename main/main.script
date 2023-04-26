@@ -191,7 +191,7 @@ local function pulse_sonar(self)
 
 			for group, ray in pairs(hits) do
 				local time_til_hit = MAX_TRAVEL_TIME * ray.fraction
-				timer.delay(time_til_hit, false, function()
+				timer.delay(math.max(time_til_hit - 0.1, 0), false, function()
 					spawn_splash2(ray.normal, ray.position, COLOR_MAP[group])
 				end)
 				if group == GREEN_GROUP then
