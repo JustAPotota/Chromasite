@@ -137,7 +137,7 @@ embedded_instances {
   "  }\n"
   "}\n"
   "embedded_components {\n"
-  "  id: \"afactory\"\n"
+  "  id: \"sonar\"\n"
   "  type: \"factory\"\n"
   "  data: \"prototype: \\\"/main/sonar.go\\\"\\n"
   "load_dynamically: false\\n"

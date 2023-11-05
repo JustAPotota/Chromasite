@@ -56,11 +56,11 @@ void main() {
 		ceil(initial_color.g)*not_collided_yet.g,
 		ceil(initial_color.b)*not_collided_yet.b
 	);
-	float color_count = ceil(is_active.r) + ceil(is_active.g) + ceil(is_active.b);
+	float active_colors = ceil(is_active.r) + ceil(is_active.g) + ceil(is_active.b);
 	vec3 pulse_color = vec3(0.0);
-	pulse_color += RED   * is_active.r / color_count;
-	pulse_color += GREEN * is_active.g / color_count;
-	pulse_color += BLUE  * is_active.b / color_count;
+	pulse_color += RED   * is_active.r / active_colors;
+	pulse_color += GREEN * is_active.g / active_colors;
+	pulse_color += BLUE  * is_active.b / active_colors;
 
-	gl_FragColor = vec4(pulse_color, alpha * step(0.1, color_count));
+	gl_FragColor = vec4(pulse_color, alpha * step(0.1, active_colors));
 }
