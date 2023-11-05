@@ -204,7 +204,7 @@ local function pulse_sonar(self)
 
 		seconds_left[angle] = seconds
 	end
-	sonar.new_sonar(self.pos, self.color, seconds_left)
+	sonar.new_sonar("#sonar", self.pos, self.color, seconds_left)
 
 	timer.delay(MAX_TRAVEL_TIME, false, function()
 		self.sonar_ready = true

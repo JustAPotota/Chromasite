@@ -47,9 +47,9 @@ void main() {
 	vec3 seconds_left = get_seconds_left();
 
 	vec3 not_collided_yet = vec3(
-		1.0 - smoothstep(0.0, 0.2, seconds_alive - seconds_left.r),
-		1.0 - smoothstep(0.0, 0.2, seconds_alive - seconds_left.g),
-		1.0 - smoothstep(0.0, 0.2, seconds_alive - seconds_left.b)
+		seconds_alive < seconds_left.r,
+		seconds_alive < seconds_left.g,
+		seconds_alive < seconds_left.b
 	);
 	vec3 is_active = vec3(
 		ceil(initial_color.r)*not_collided_yet.r,

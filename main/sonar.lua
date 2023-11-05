@@ -2,14 +2,15 @@ local M = {}
 
 local active_sonars = {}
 
+---@param factory_url url|string
 ---@param position vector3
 ---@param color vector4
 ---@param seconds_left vector4[]
-function M.new_sonar(position, color, seconds_left)
+function M.new_sonar(factory_url, position, color, seconds_left)
 	assert(#seconds_left <= 256)
 
 	local position = vmath.vector3(position.x, position.y, #active_sonars / 100)
-	local object_id = factory.create("#sonar", position)
+	local object_id = factory.create(factory_url, position)
 	local model_url = msg.url(nil, object_id, "model")
 
 	go.set_scale(vmath.vector3(1000, 1000, 1), object_id)
