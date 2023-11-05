@@ -8,7 +8,26 @@
         "fixed_update",
         "on_message",
         "on_input",
-        "on_reload"
+        "on_reload",
+        "msg",
+        "sound",
+        "hash",
+        "vmath",
+        "gui",
+        "socket",
+        "sys",
+        "render",
+        "go",
+        "factory",
+        "resource",
+        "pprint",
+        "timer",
+        "particlefx",
+        "spine",
+        "sprite",
+        "json",
+        "window",
+        "physics"
     ],
     "files.associations": {
         "*.script": "lua",
@@ -46,7 +65,8 @@
         "*.texture_profiles": "textproto",
         "*.tilemap": "textproto",
         "*.tilesource": "textproto",
-        "*.appmanifest": "yaml"
+        "*.appmanifest": "yaml",
+        "*.manifest": "textproto"
     },
     "search.exclude": {
         "**/node_modules": true,
@@ -61,6 +81,26 @@
     },
     "Lua.workspace.library": [
         ".defold/api",
-        ".defold/assets"
-    ]
+        ".defold/assets",
+        "~/.config/Visual Studio Code/User/globalStorage/astronachos.defold",
+        "~/.config/Visual Studio Code/User/workspaceStorage/40399fc6f30e13312b0aa876ff92deb2/astronachos.defold"
+    ],
+    "[lua]": {
+        "editor.defaultFormatter": "sumneko.lua"
+    },
+    "Lua.runtime.version": "Lua 5.1",
+    "Lua.window.statusBar": false,
+    "Lua.completion.callSnippet": "Replace",
+    "Lua.completion.keywordSnippet": "Replace",
+    "Lua.completion.showWord": "Fallback",
+    "Lua.completion.autoRequire": false,
+    "Lua.diagnostics.libraryFiles": "Disable",
+    "Lua.diagnostics.disable": [
+        "lowercase-global",
+        "redefined-local"
+    ],
+    "glsllint.additionalStageAssociations": {
+        ".fp": "frag",
+        ".vp": "vert"
+    }
 }
