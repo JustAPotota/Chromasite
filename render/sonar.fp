@@ -47,16 +47,16 @@ void main() {
 	vec3 seconds_left = get_seconds_left();
 
 	vec3 not_collided_yet = vec3(
-		step(seconds_alive, seconds_left.r),
-		step(seconds_alive, seconds_left.g),
-		step(seconds_alive, seconds_left.b)
+		1.0 - smoothstep(0.0, 0.2, seconds_alive - seconds_left.r),
+		1.0 - smoothstep(0.0, 0.2, seconds_alive - seconds_left.g),
+		1.0 - smoothstep(0.0, 0.2, seconds_alive - seconds_left.b)
 	);
 	vec3 is_active = vec3(
 		ceil(initial_color.r)*not_collided_yet.r,
 		ceil(initial_color.g)*not_collided_yet.g,
 		ceil(initial_color.b)*not_collided_yet.b
 	);
-	float color_count = is_active.r + is_active.g + is_active.b;
+	float color_count = ceil(is_active.r) + ceil(is_active.g) + ceil(is_active.b);
 	vec3 pulse_color = vec3(0.0);
 	pulse_color += RED   * is_active.r / color_count;
 	pulse_color += GREEN * is_active.g / color_count;

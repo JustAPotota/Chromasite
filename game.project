@@ -15,7 +15,7 @@ update_frequency = 60
 input_method = HiddenInputField
 
 [project]
-title = My Project
+title = Chromasite
 dependencies#0 = https://github.com/britzl/defold-orthographic/archive/refs/tags/3.2.1.zip
 
 [sprite]
