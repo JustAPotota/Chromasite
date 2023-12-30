@@ -258,8 +258,8 @@ local function update_color(self)
 			self.color = self.color + COLOR_MAP[group] / #self.groups
 		end
 	end
-	set_color(msg.url("go2#sprite"), self.color * 1.5)
-	particlefx.set_constant("go2#trail", "emitter", "tint", self.color)
+	set_color(msg.url("#sprite"), self.color * 1.5)
+	particlefx.set_constant("#trail", "emitter", "tint", self.color)
 end
 
 ---@class Self
@@ -275,12 +275,12 @@ end
 ---@param self Self
 function init(self)
 	msg.post(".", "acquire_input_focus")
-	particlefx.play("go2#trail")
+	particlefx.play("#trail")
 	MAP_X, MAP_Y, MAP_W, MAP_H = tilemap.get_bounds("/map#map")
 	self.pos = vmath.vector3(480, 320, 1)
 	self.input = vmath.vector3()
 	self.velocity = vmath.vector3()
-	self.dot_factory = msg.url("#factory")
+	self.dot_factory = msg.url("#pulse_segment")
 	self.groups = {}
 
 	self.color = vmath.vector4()
@@ -310,7 +310,7 @@ end
 function update(self, dt)
 	apply_input(self, dt)
 	move(self, self.velocity * dt)
-	go.set_position(self.pos, "go2")
+	go.set_position(self.pos)
 	self.input.x, self.input.y = 0, 0
 	sonar.update(dt)
 end
@@ -329,7 +329,7 @@ end
 ---@param t table
 ---@param v any
 ---@return number?
-local function find_in_table(t, v)
+local function find_in_array(t, v)
 	for i, value in ipairs(t) do
 		if value == v then
 			return i
@@ -347,7 +347,7 @@ end
 ---@param self Self
 ---@param group hash
 local function toggle_group(self, group)
-	local index = find_in_table(self.groups, group)
+	local index = find_in_array(self.groups, group)
 	if index then
 		table.remove(self.groups, index)
 		update_color(self)
